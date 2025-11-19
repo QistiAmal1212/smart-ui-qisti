@@ -1,0 +1,146 @@
+
+/* ------------------------------
+   CSS VARIABLES 
+--------------------------------*/
+:root {
+    --smartuiqisti-primary: #2563eb; 
+    --smartuiqisti-drop-bg: #f8fafc; 
+    --smartuiqisti-drop-border: #cbd5e1; 
+    --smartuiqisti-drop-active: #2563eb; 
+    --smartuiqisti-drop-active-bg: #dbeafe;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --smartuiqisti-primary: #60a5fa;
+        --smartuiqisti-drop-bg: #0f172a;
+        --smartuiqisti-drop-border: #334155;
+        --smartuiqisti-drop-active: #3b82f6;
+        --smartuiqisti-drop-active-bg: #1e293b;
+    }
+}
+
+/* ------------------------------
+  Tailwind
+--------------------------------*/
+.smartuiqisti-upload-label {
+    @apply text-gray-800 dark:text-white mb-2;
+}
+
+.smartuiqisti-upload-required {
+    @apply text-red-700 ml-1;
+}
+
+.smartuiqisti-upload-drop {
+    @apply border-2 border-dashed rounded-2xl p-7 text-center block w-full transition-all duration-200;
+    background: var(--smartuiqisti-drop-bg);
+    border-color: var(--smartuiqisti-drop-border);
+}
+
+.smartuiqisti-upload-icon-circle {
+    @apply w-13 h-13 rounded-full border-2 mx-auto mb-3 flex items-center justify-center;
+    border-color: var(--smartuiqisti-primary);
+    color: var(--smartuiqisti-primary);
+}
+
+.smartuiqisti-upload-inner-title {
+    @apply text-[1.1rem] font-bold text-zinc-700 mb-1 overflow-hidden break-words;
+}
+
+.smartuiqisti-upload-inner-sub-title {
+    @apply text-gray-400 font-semibold mb-1.5 overflow-hidden break-words;
+}
+
+.smartuiqisti-upload-inner-accepted-file-type-text {
+    @apply text-gray-400 text-[0.95rem] mb-3 break-all;
+}
+
+.smartuiqisti-upload-inner-browse-file-button {
+    @apply font-extrabold text-[1.02rem] no-underline;
+    color: var(--smartuiqisti-primary);
+}
+
+
+
+
+/* ---------------------------------------------------
+  If your project not using tailwind use this instead 
+-----------------------------------------------------*/
+/* 
+.smartuiqisti-upload-label {
+    color: #1f2937;
+    margin-bottom: 10px;
+}
+@media (prefers-color-scheme: dark) {
+    .smartuiqisti-upload-label {
+        color: #ffffff;
+    }
+}
+
+.smartuiqisti-upload-required {
+    color: #b91c1c;
+    margin-left: 3px;
+}
+
+.smartuiqisti-upload-drop {
+    border: 2px dashed var(--smartuiqisti-drop-border);
+    background: var(--smartuiqisti-drop-bg);
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    display: block;
+}
+
+.smartuiqisti-upload-icon-circle {
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: 2px solid var(--smartuiqisti-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    color: var(--smartuiqisti-primary);
+}
+
+.smartuiqisti-upload-inner-title  {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #3f3f46;
+    margin-bottom: 4px;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+}
+
+.smartuiqisti-upload-inner-sub-title {
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.smartuiqisti-upload-inner-accepted-file-type-text {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    white-space: normal;
+}
+
+.smartuiqisti-upload-inner-browse-file-button {
+    color: var(--smartuiqisti-primary);
+    font-weight: 800;
+    text-decoration: none;
+    font-size: 1.02rem;
+}
+ */
+

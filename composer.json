@@ -1,0 +1,21 @@
+{
+    "name": "qisti/smart-ui-qisti",
+    "description": "Local Smart UI components for the Qisti app.",
+    "type": "library",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {
+            "Qisti\\SmartUi\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Qisti\\SmartUi\\SmartUiQistiServiceProvider"
+            ],
+            "aliases": []
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

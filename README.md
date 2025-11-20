@@ -36,5 +36,11 @@ php artisan vendor:publish --tag=smartuiqisti-views
 php artisan vendor:publish --tag=smartuiqisti-config
 ```
 
+7. Use of the component
+
+```php
+ <x-smartuiqisti::forms.upload-form />
+```
+
 
 

@@ -6,8 +6,63 @@ use Illuminate\View\Component;
 
 class UploadForm extends Component
 {
+    public string $label;
+    public ?int $maxFiles;
+    public ?int $maxSize;
+    public string $accept;
+    public string $mainColor;
+    public string $dropzoneColor;
+    public string $dropzoneBorderColor;
+    public string $dropzoneActiveColor;
+    public string $dropzoneClass;
+    public string $labelClass;
+    public string $innerIconClass;
+    public string $innerTitleClass;
+    public string $innerTitleSubClass;
+    public string $innerAcceptedClass;
+    public bool $required;
+    public bool $disable;
+    public bool $aiEnable;
+    public bool $previewOutside;
+
     public function __construct(
+        string $label = 'Upload',
+        int $maxFiles = 1,
+        int $maxSize = 1,
+        string $accept = '.doc,.docx,.xls,.xlsx,.zip,.pdf,.png,.jpg,.jpeg',
+        string $mainColor = '#000000',
+        string $dropzoneColor = '#ffffff',
+        string $dropzoneBorderColor = '#cccccc',
+        string $dropzoneActiveColor = '#eeeeee',
+        string $dropzoneClass = '',
+        string $labelClass = '',
+        string $innerIconClass = '',
+        string $innerTitleClass = '',
+        string $innerTitleSubClass = '',
+        string $innerAcceptedClass = '',
+        bool $required = false,
+        bool $disable = false,
+        bool $aiEnable = false,
+        bool $previewOutside = false,
     ) {
+        $this->label = $label;
+        $this->maxFiles = $maxFiles;
+        $this->maxSize = $maxSize;
+        $this->accept = $accept;
+        $this->mainColor = $mainColor;
+        $this->dropzoneColor = $dropzoneColor;
+        $this->dropzoneBorderColor = $dropzoneBorderColor;
+        $this->dropzoneActiveColor = $dropzoneActiveColor;
+        $this->dropzoneClass = $dropzoneClass;
+        $this->labelClass = $labelClass;
+        $this->innerIconClass = $innerIconClass;
+        $this->innerTitleClass = $innerTitleClass;
+        $this->innerTitleSubClass = $innerTitleSubClass;
+        $this->innerAcceptedClass = $innerAcceptedClass;
+        $this->required = $required;
+        $this->disable = $disable;
+        $this->aiEnable = $aiEnable;
+        $this->previewOutside = $previewOutside;
     }
 
     public function render()

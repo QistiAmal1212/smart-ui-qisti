@@ -755,31 +755,90 @@ function suqHandlePreview(file) {
                         class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
         }
         else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const data = new Uint8Array(e.target.result);
-                const wb = XLSX.read(data, { type: "array" });
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                const html = XLSX.utils.sheet_to_html(sheet);
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: "array" });
 
-                content.innerHTML =
-                    `<div class="overflow-auto suq-scroll">${html}</div>`;
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        else if (lowerName.endsWith(".csv")) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const csv = e.target.result;
-                const wb = XLSX.read(csv, { type: "string" });
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                const html = XLSX.utils.sheet_to_html(sheet);
+        const sheet = wb.Sheets[wb.SheetNames[0]];
 
-                content.innerHTML =
-                    `<div class="overflow-auto suq-scroll">${html}</div>`;
-            };
-            reader.readAsText(file);
+        // Convert to JSON rows
+        let rows = XLSX.utils.sheet_to_json(sheet, {
+            header: 1,        // return rows as arrays
+            blankrows: false  // remove completely blank rows
+        });
+
+        // Extra filter → remove rows that are all empty values
+        rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
+
+        // Convert JSON → HTML table manually
+        let html = "<table><thead>";
+
+        if (rows.length > 0) {
+            html += "<tr>";
+            rows[0].forEach(h => {
+                html += `<th>${h || ""}</th>`;
+            });
+            html += "</tr></thead><tbody>";
+
+            rows.slice(1).forEach(row => {
+                html += "<tr>";
+                row.forEach(col => {
+                    html += `<td>${col || ""}</td>`;
+                });
+                html += "</tr>";
+            });
+
+            html += "</tbody></table>";
+        } else {
+            html = "<p class='p-4 text-slate-500'>No data available.</p>";
         }
+
+        content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+else if (lowerName.endsWith(".csv")) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const csv = e.target.result;
+        const wb = XLSX.read(csv, { type: "string" });
+
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+
+        let rows = XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+            blankrows: false
+        });
+
+        rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
+
+        let html = "<table><thead>";
+
+        if (rows.length > 0) {
+            html += "<tr>";
+            rows[0].forEach(h => html += `<th>${h || ""}</th>`);
+            html += "</tr></thead><tbody>";
+
+            rows.slice(1).forEach(row => {
+                html += "<tr>";
+                row.forEach(col => html += `<td>${col || ""}</td>`);
+                html += "</tr>";
+            });
+
+            html += "</tbody></table>";
+        } else {
+            html = "<p class='p-4 text-slate-500'>No data available.</p>";
+        }
+
+        content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
+    };
+
+    reader.readAsText(file);
+}
+
     } else {
         suqCloseModal();
         suqConfirmDownload(file);

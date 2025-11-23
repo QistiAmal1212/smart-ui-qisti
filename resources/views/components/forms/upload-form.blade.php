@@ -2,10 +2,6 @@
 <!--            SMART UI QISTI – UPLOAD + PROFESSIONAL MODAL     -->
 <!-- =========================================================== -->
 
-@php
-    // Default max file if not provided
-    $maxFile = $maxFile ?? 5;
-@endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
 <div id="suq-preview-modal"
@@ -239,6 +235,7 @@
 <!-- =========================================================== -->
 
 <div class="smartuiqisti-upload-container {{ $dropzoneClass }}"
+     data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      style="
         --suq-main-color: {{ $mainColor }};
         --suq-drop-bg: {{ $dropzoneColor }};
@@ -295,478 +292,485 @@
         <div class="suq-preview suq-preview-outside hidden space-y-3 mt-4"></div>
     @endif
 
-    <!-- ==================== BULK ACTION BAR (PER COMPONENT) ==================== -->
-    <div class="suq-bulk-bar hidden fixed bottom-6 left-1/2 -translate-x-1/2
-                px-6 py-3 rounded-2xl shadow-xl border
-                bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl
-                border-slate-300 dark:border-slate-600
-                flex items-center gap-4 z-[999999]">
+    @if($bulkDelete)
+        <!-- ==================== BULK ACTION BAR (PER COMPONENT) ==================== -->
+        <div class="suq-bulk-bar hidden fixed bottom-6 left-1/2 -translate-x-1/2
+                    px-6 py-3 rounded-2xl shadow-xl border
+                    bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl
+                    border-slate-300 dark:border-slate-600
+                    flex items-center gap-4 z-[999999]">
 
-        <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <span class="suq-selected-count">0</span> selected
-        </span>
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <span class="suq-selected-count">0</span> selected
+            </span>
 
-        <button type="button"
-                class="suq-clear-btn px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
-                       dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200
-                       text-sm transition">
-            Clear
-        </button>
+            <button type="button"
+                    class="suq-clear-btn px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
+                           dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200
+                           text-sm transition">
+                Clear
+            </button>
 
-        <button type="button"
-                class="suq-bulk-delete-btn px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700
-                       text-white text-sm font-semibold transition">
-            Delete Selected
-        </button>
-    </div>
+            <button type="button"
+                    class="suq-bulk-delete-btn px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700
+                           text-white text-sm font-semibold transition">
+                Delete Selected
+            </button>
+        </div>
+    @endif
 </div>
 
-<!-- =========================================================== -->
-<!--                   SCRIPT – MULTIPLE + MODAL                 -->
-<!-- =========================================================== -->
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    const components = document.querySelectorAll(".smartuiqisti-upload-container");
-
-    components.forEach(component => {
-        const input = component.querySelector(".suq-input");
-        let preview =
-            component.querySelector(".suq-preview-outside") ||
-            component.querySelector(".suq-preview-inside");
-
-        if (!input || !preview) return;
-
-        let filesArr = [];
-        const errorMsg = component.querySelector(".suq-error-msg");
-        const dropzone = component.querySelector(".smartuiqisti-upload-drop");
-        const maxSizeMB = {{ $maxSize }};
-        const maxSizeBytes = maxSizeMB * 1024 * 1024;
-        const maxFile = {{ $maxFile }};
-
-        const bulkBar = component.querySelector(".suq-bulk-bar");
-        const bulkDeleteBtn = component.querySelector(".suq-bulk-delete-btn");
-        const clearBtn = component.querySelector(".suq-clear-btn");
-        const selectedCountEl = component.querySelector(".suq-selected-count");
-
-        function updateBulkBar() {
-            if (!bulkBar || !selectedCountEl) return;
-            const checked = component.querySelectorAll(".suq-file-check:checked");
-            const selectedCount = checked.length;
-            selectedCountEl.textContent = selectedCount;
-            if (selectedCount > 0) bulkBar.classList.remove("hidden");
-            else bulkBar.classList.add("hidden");
-        }
-
-        if (clearBtn) {
-            clearBtn.addEventListener("click", () => {
-                suqClearSelection(component);
-            });
-        }
-
-        if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener("click", () => {
-                const checks = component.querySelectorAll(".suq-file-check:checked");
-                if (!checks.length) return;
-
-                const indexes = [...checks].map(c => Number(c.dataset.index));
-
-                suqConfirmDelete(`Delete ${indexes.length} selected files?`, () => {
-                    indexes.sort((a, b) => b - a);
-                    indexes.forEach(i => {
-                        if (i >= 0 && i < filesArr.length) {
-                            filesArr.splice(i, 1);
-                        }
-                    });
-
-                    syncInput();
-                    renderPreview();
+    document.addEventListener("DOMContentLoaded", () => {
+        const components = document.querySelectorAll(".smartuiqisti-upload-container");
+    
+        components.forEach(component => {
+            const input = component.querySelector(".suq-input");
+            let preview =
+                component.querySelector(".suq-preview-outside") ||
+                component.querySelector(".suq-preview-inside");
+    
+            if (!input || !preview) return;
+    
+            const bulkEnabled = component.dataset.bulkDelete === "1";
+    
+            let filesArr = [];
+            const errorMsg = component.querySelector(".suq-error-msg");
+            const dropzone = component.querySelector(".smartuiqisti-upload-drop");
+            const maxSizeMB = {{ $maxSize }};
+            const maxSizeBytes = maxSizeMB * 1024 * 1024;
+            const maxFile = {{ $maxFile }};
+    
+            const bulkBar        = bulkEnabled ? component.querySelector(".suq-bulk-bar")         : null;
+            const bulkDeleteBtn  = bulkEnabled ? component.querySelector(".suq-bulk-delete-btn")  : null;
+            const clearBtn       = bulkEnabled ? component.querySelector(".suq-clear-btn")        : null;
+            const selectedCountEl= bulkEnabled ? component.querySelector(".suq-selected-count")   : null;
+    
+            function updateBulkBar() {
+                if (!bulkEnabled || !bulkBar || !selectedCountEl) return;
+    
+                const checked = component.querySelectorAll(".suq-file-check:checked");
+                const selectedCount = checked.length;
+                selectedCountEl.textContent = selectedCount;
+    
+                if (selectedCount > 0) bulkBar.classList.remove("hidden");
+                else bulkBar.classList.add("hidden");
+            }
+    
+            if (bulkEnabled && clearBtn) {
+                clearBtn.addEventListener("click", () => {
                     suqClearSelection(component);
                 });
-            });
-        }
-
-        input.addEventListener("change", function () {
-            if (!this.files.length) return;
-
-            Array.from(this.files).forEach(file => {
-                if (filesArr.length >= maxFile) {
-                    errorMsg.textContent = `Maximum ${maxFile} files allowed.`;
-                    errorMsg.classList.remove("hidden");
-
-                    dropzone.classList.add("suq-error", "suq-shake");
-                    setTimeout(() => dropzone.classList.remove("suq-shake"), 300);
-                    setTimeout(() => {
-                        dropzone.classList.remove("suq-error");
-                        errorMsg.classList.add("hidden");
-                    }, 3000);
-
-                    return;
-                }
-
-                if (file.size > maxSizeBytes) {
-                    errorMsg.textContent = `${file.name} exceeds the ${maxSizeMB} MB limit.`;
-                    errorMsg.classList.remove("hidden");
-
-                    dropzone.classList.add("suq-error", "suq-shake");
-                    setTimeout(() => dropzone.classList.remove("suq-shake"), 300);
-                    setTimeout(() => {
-                        dropzone.classList.remove("suq-error");
-                        errorMsg.classList.add("hidden");
-                    }, 3000);
-
-                    return;
-                }
-
-                filesArr.push(file);
-            });
-
-            syncInput();
-            renderPreview();
-        });
-
-        function syncInput() {
-            const dt = new DataTransfer();
-            filesArr.forEach(f => dt.items.add(f));
-            input.files = dt.files;
-        }
-
-        function renderPreview() {
-            preview.innerHTML = "";
-            if (!filesArr.length) {
-                preview.classList.add("hidden");
-                suqClearSelection(component);
-                return;
             }
-
-            preview.classList.remove("hidden");
-
-            filesArr.forEach((file, index) => {
-                const row = document.createElement("div");
-                row.className =
-                    "flex items-center justify-between p-4 rounded-2xl border shadow-sm " +
-                    "bg-white/70 dark:bg-slate-800/60 backdrop-blur-xl " +
-                    "border-slate-200 dark:border-slate-700 " +
-                    "hover:shadow-lg hover:scale-[1.01] transition-all duration-300";
-
-                const left = document.createElement("div");
-                left.className = "flex items-center gap-4 min-w-0";
-
-                const checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.className = "suq-file-check w-4 h-4 accent-slate-700 dark:accent-slate-300 cursor-pointer";
-                checkbox.dataset.index = index;
-                checkbox.addEventListener("change", updateBulkBar);
-                left.appendChild(checkbox);
-
-                const thumb = document.createElement("div");
-                thumb.className =
-                    "w-8 h-8 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 " +
-                    "bg-slate-100 dark:bg-slate-700 flex items-center justify-center";
-
-                if (file.type.startsWith("image/")) {
-                    const img = document.createElement("img");
-                    img.src = URL.createObjectURL(file);
-                    img.className = "w-full h-full object-cover hover:scale-110 transition-all duration-300";
-                    thumb.appendChild(img);
-                } else {
-                    thumb.innerHTML = `
-                        <span class="px-2 py-1 rounded-md text-xs font-semibold 
-                        bg-slate-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">
-                            ${(file.name.split('.').pop() || "").toUpperCase()}
-                        </span>`;
-                }
-
-                left.appendChild(thumb);
-
-                const info = document.createElement("div");
-                info.className = "flex flex-col min-w-0";
-
-                const name = document.createElement("div");
-                name.className =
-                    "truncate max-w-[240px] text-sm font-semibold text-slate-800 dark:text-slate-100";
-                name.textContent = file.name;
-
-                info.appendChild(name);
-                left.appendChild(info);
-
-                row.appendChild(left);
-
-                const actions = document.createElement("div");
-                actions.className = "flex items-center shrink-0 gap-1";
-
-                const prevBtn = document.createElement("button");
-                prevBtn.type = "button";
-                prevBtn.className =
-                    "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition";
-
-                prevBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-600 dark:text-slate-200"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M2.458 12C3.732 7.943 7.477 5 12 5c4.523 0 8.268 2.943 9.542 7-1.274 4.057-5.019 7-9.542 7-4.523 0-8.268-2.943-9.542-7z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>`;
-                prevBtn.onclick = () => {
-                    suqClearSelection(component);
-                    suqHandlePreview(file);
-                };
-
-                const rmBtn = document.createElement("button");
-                rmBtn.type = "button";
-                rmBtn.className =
-                    "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900 transition";
-
-                rmBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-rose-600 dark:text-rose-400"
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-8 0h10M10 4h4a1 1 0 011 1v-1H9V5a1 1 0 011-1z"/>`;
-                
-                rmBtn.onclick = () => {
-                    suqConfirmDelete(`Delete "${file.name}"?`, () => {
-                        filesArr.splice(index, 1);
+    
+            if (bulkEnabled && bulkDeleteBtn) {
+                bulkDeleteBtn.addEventListener("click", () => {
+                    const checks = component.querySelectorAll(".suq-file-check:checked");
+                    if (!checks.length) return;
+    
+                    const indexes = [...checks].map(c => Number(c.dataset.index));
+    
+                    suqConfirmDelete(`Delete ${indexes.length} selected files?`, () => {
+                        indexes.sort((a, b) => b - a);
+                        indexes.forEach(i => {
+                            if (i >= 0 && i < filesArr.length) {
+                                filesArr.splice(i, 1);
+                            }
+                        });
+    
                         syncInput();
                         renderPreview();
                         suqClearSelection(component);
                     });
-                };
-
-                actions.appendChild(prevBtn);
-                actions.appendChild(rmBtn);
-                row.appendChild(actions);
-
-                preview.appendChild(row);
+                });
+            }
+    
+            input.addEventListener("change", function () {
+                if (!this.files.length) return;
+    
+                Array.from(this.files).forEach(file => {
+                    if (filesArr.length >= maxFile) {
+                        errorMsg.textContent = `Maximum ${maxFile} files allowed.`;
+                        errorMsg.classList.remove("hidden");
+    
+                        dropzone.classList.add("suq-error", "suq-shake");
+                        setTimeout(() => dropzone.classList.remove("suq-shake"), 300);
+                        setTimeout(() => {
+                            dropzone.classList.remove("suq-error");
+                            errorMsg.classList.add("hidden");
+                        }, 3000);
+    
+                        return;
+                    }
+    
+                    if (file.size > maxSizeBytes) {
+                        errorMsg.textContent = `${file.name} exceeds the ${maxSizeMB} MB limit.`;
+                        errorMsg.classList.remove("hidden");
+    
+                        dropzone.classList.add("suq-error", "suq-shake");
+                        setTimeout(() => dropzone.classList.remove("suq-shake"), 300);
+                        setTimeout(() => {
+                            dropzone.classList.remove("suq-error");
+                            errorMsg.classList.add("hidden");
+                        }, 3000);
+    
+                        return;
+                    }
+    
+                    filesArr.push(file);
+                });
+    
+                syncInput();
+                renderPreview();
             });
-
-            updateBulkBar();
-        }
+    
+            function syncInput() {
+                const dt = new DataTransfer();
+                filesArr.forEach(f => dt.items.add(f));
+                input.files = dt.files;
+            }
+    
+            function renderPreview() {
+                preview.innerHTML = "";
+                if (!filesArr.length) {
+                    preview.classList.add("hidden");
+                    suqClearSelection(component);
+                    return;
+                }
+    
+                preview.classList.remove("hidden");
+    
+                filesArr.forEach((file, index) => {
+                    const row = document.createElement("div");
+                    row.className =
+                        "flex items-center justify-between p-4 rounded-2xl border shadow-sm " +
+                        "bg-white/70 dark:bg-slate-800/60 backdrop-blur-xl " +
+                        "border-slate-200 dark:border-slate-700 " +
+                        "hover:shadow-lg hover:scale-[1.01] transition-all duration-300";
+    
+                    const left = document.createElement("div");
+                    left.className = "flex items-center gap-4 min-w-0";
+    
+                    if (bulkEnabled) {
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.className = "suq-file-check w-4 h-4 accent-slate-700 dark:accent-slate-300 cursor-pointer";
+                        checkbox.dataset.index = index;
+                        checkbox.addEventListener("change", updateBulkBar);
+                        left.appendChild(checkbox);
+                    }
+    
+                    const thumb = document.createElement("div");
+                    thumb.className =
+                        "w-8 h-8 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 " +
+                        "bg-slate-100 dark:bg-slate-700 flex items-center justify-center";
+    
+                    if (file.type.startsWith("image/")) {
+                        const img = document.createElement("img");
+                        img.src = URL.createObjectURL(file);
+                        img.className = "w-full h-full object-cover hover:scale-110 transition-all duration-300";
+                        thumb.appendChild(img);
+                    } else {
+                        thumb.innerHTML = `
+                            <span class="px-2 py-1 rounded-md text-xs font-semibold 
+                            bg-slate-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">
+                                ${(file.name.split('.').pop() || "").toUpperCase()}
+                            </span>`;
+                    }
+    
+                    left.appendChild(thumb);
+    
+                    const info = document.createElement("div");
+                    info.className = "flex flex-col min-w-0";
+    
+                    const name = document.createElement("div");
+                    name.className =
+                        "truncate max-w-[240px] text-sm font-semibold text-slate-800 dark:text-slate-100";
+                    name.textContent = file.name;
+    
+                    info.appendChild(name);
+                    left.appendChild(info);
+    
+                    row.appendChild(left);
+    
+                    const actions = document.createElement("div");
+                    actions.className = "flex items-center shrink-0 gap-1";
+    
+                    const prevBtn = document.createElement("button");
+                    prevBtn.type = "button";
+                    prevBtn.className =
+                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition";
+    
+                    prevBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-600 dark:text-slate-200"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M2.458 12C3.732 7.943 7.477 5 12 5c4.523 0 8.268 2.943 9.542 7-1.274 4.057-5.019 7-9.542 7-4.523 0-8.268-2.943-9.542-7z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>`;
+                    prevBtn.onclick = () => {
+                        suqClearSelection(component);
+                        suqHandlePreview(file);
+                    };
+    
+                    const rmBtn = document.createElement("button");
+                    rmBtn.type = "button";
+                    rmBtn.className =
+                        "w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900 transition";
+    
+                    rmBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-rose-600 dark:text-rose-400"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-8 0h10M10 4h4a1 1 0 011 1v-1H9V5a1 1 0 011-1z"/>`;
+                    
+                    rmBtn.onclick = () => {
+                        suqConfirmDelete(`Delete "${file.name}"?`, () => {
+                            filesArr.splice(index, 1);
+                            syncInput();
+                            renderPreview();
+                            suqClearSelection(component);
+                        });
+                    };
+    
+                    actions.appendChild(prevBtn);
+                    actions.appendChild(rmBtn);
+                    row.appendChild(actions);
+    
+                    preview.appendChild(row);
+                });
+    
+                updateBulkBar();
+            }
+        });
     });
-});
-
-/* Clear selection for one component */
-function suqClearSelection(component) {
-    if (!component) return;
-    const checks = component.querySelectorAll(".suq-file-check");
-    checks.forEach(c => c.checked = false);
-
-    const bar = component.querySelector(".suq-bulk-bar");
-    if (bar) bar.classList.add("hidden");
-
-    const countEl = component.querySelector(".suq-selected-count");
-    if (countEl) countEl.textContent = 0;
-}
-
-/* ================= PREVIEW MODAL ================= */
-
-function suqOpenModal() {
-    document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
-
-    const modal = document.getElementById("suq-preview-modal");
-    const card  = document.getElementById("suq-preview-card");
-
-    modal.style.display = "flex";
-
-    requestAnimationFrame(() => {
-        card.classList.remove("scale-95", "opacity-0");
-        card.classList.add("scale-100", "opacity-100");
-    });
-}
-
-function suqCloseModal() {
-    const modal = document.getElementById("suq-preview-modal");
-    const card  = document.getElementById("suq-preview-card");
-
-    card.classList.add("scale-95", "opacity-0");
-    card.classList.remove("scale-100", "opacity-100");
-
-    setTimeout(() => { modal.style.display = "none"; }, 180);
-}
-
-function suqHandlePreview(file) {
-    const lowerName = file.name.toLowerCase();
-
-    if (
-        file.type.startsWith("image/") ||
-        file.type === "application/pdf" ||
-        lowerName.endsWith(".xlsx") ||
-        lowerName.endsWith(".xls") ||
-        lowerName.endsWith(".csv")
-    ) {
-
-        suqOpenModal();
-        const content = document.getElementById("suq-modal-content");
-        content.innerHTML = "";
-
-        if (file.type.startsWith("image/")) {
-            content.innerHTML = `
-                <div class="flex justify-center">
-                    <img src="${URL.createObjectURL(file)}"
-                         class="rounded-xl shadow-lg" />
-                </div>`;
-        }
-        else if (file.type === "application/pdf") {
-            content.innerHTML = `
-                <iframe src="${URL.createObjectURL(file)}"
-                        class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
-        }
-        else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const data = new Uint8Array(e.target.result);
-                const wb = XLSX.read(data, { type: "array" });
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                const html = XLSX.utils.sheet_to_html(sheet);
-
-                content.innerHTML =
-                    `<div class="overflow-auto suq-scroll">${html}</div>`;
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        else if (lowerName.endsWith(".csv")) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const csv = e.target.result;
-                const wb = XLSX.read(csv, { type: "string" });
-                const sheet = wb.Sheets[wb.SheetNames[0]];
-                const html = XLSX.utils.sheet_to_html(sheet);
-
-                content.innerHTML =
-                    `<div class="overflow-auto suq-scroll">${html}</div>`;
-            };
-            reader.readAsText(file);
-        }
-    } else {
-        suqCloseModal();
-        suqConfirmDownload(file);
+    </script>
+<script>
+    /* Clear selection for one component */
+    function suqClearSelection(component) {
+        if (!component) return;
+    
+        const checks = component.querySelectorAll(".suq-file-check");
+        checks.forEach(c => c.checked = false);
+    
+        const bar = component.querySelector(".suq-bulk-bar");
+        if (bar) bar.classList.add("hidden");
+    
+        const countEl = component.querySelector(".suq-selected-count");
+        if (countEl) countEl.textContent = 0;
     }
-}
-
-let suqFullscreen = false;
-function suqToggleFullscreen() {
-    const card = document.getElementById("suq-preview-card");
-    suqFullscreen = !suqFullscreen;
-    if (suqFullscreen) card.classList.add("suq-fullscreen");
-    else card.classList.remove("suq-fullscreen");
-}
-
-window.addEventListener("resize", () => {
-    const modal = document.getElementById("suq-preview-modal");
-    const card = document.getElementById("suq-preview-card");
-    if (modal.style.display === "flex") card.style.margin = "auto";
-});
-
-/* Close preview modal by clicking outside */
-document.getElementById("suq-preview-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-preview-card");
-    if (!card.contains(e.target)) {
-        suqCloseModal();
-    }
-});
-
-/* ================= CONFIRM DELETE MODAL ================= */
-
-let suqDeleteCallback = null;
-
-function suqConfirmDelete(message, callback) {
-    document.getElementById("suq-confirm-text").textContent = message;
-    suqDeleteCallback = callback;
-
-    const modal = document.getElementById("suq-confirm-modal");
-    const card  = document.getElementById("suq-confirm-card");
-
-    modal.style.display = "flex";
-    requestAnimationFrame(() => {
-        card.classList.remove("scale-95", "opacity-0");
-        card.classList.add("scale-100", "opacity-100");
-    });
-
-    document.getElementById("suq-confirm-yes").onclick = () => {
-        if (typeof suqDeleteCallback === "function") suqDeleteCallback();
-        suqCloseConfirm();
-    };
-}
-
-function suqCloseConfirm() {
-    const modal = document.getElementById("suq-confirm-modal");
-    const card  = document.getElementById("suq-confirm-card");
-
-    card.classList.add("scale-95", "opacity-0");
-    card.classList.remove("scale-100", "opacity-100");
-
-    setTimeout(() => { modal.style.display = "none"; }, 180);
-}
-
-/* Close confirm modal by clicking outside */
-document.getElementById("suq-confirm-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-confirm-card");
-    if (!card.contains(e.target)) suqCloseConfirm();
-});
-
-/* ================= DOWNLOAD CONFIRM MODAL ================= */
-
-let suqDownloadUrl = null;
-
-function suqConfirmDownload(file) {
-    const modal = document.getElementById("suq-download-modal");
-    const card  = document.getElementById("suq-download-card");
-    const text  = document.getElementById("suq-download-text");
-    const actionBtn = document.getElementById("suq-download-yes");
-
-    suqDownloadUrl = URL.createObjectURL(file);
-    text.textContent = `"${file.name}" cannot be previewed.`;
-
-    actionBtn.setAttribute("href", suqDownloadUrl);
-    actionBtn.setAttribute("download", file.name);
-
-    modal.style.display = "flex";
-    requestAnimationFrame(() => {
-        card.classList.remove("scale-95", "opacity-0");
-        card.classList.add("scale-100", "opacity-100");
-    });
-}
-
-function suqCloseDownload() {
-    const modal = document.getElementById("suq-download-modal");
-    const card  = document.getElementById("suq-download-card");
-
-    card.classList.add("scale-95", "opacity-0");
-    card.classList.remove("scale-100", "opacity-100");
-
-    setTimeout(() => {
-        modal.style.display = "none";
-        if (suqDownloadUrl) {
-            URL.revokeObjectURL(suqDownloadUrl);
-            suqDownloadUrl = null;
-        }
-    }, 180);
-}
-
-/* Close download modal by clicking outside */
-document.getElementById("suq-download-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-download-card");
-    if (!card.contains(e.target)) suqCloseDownload();
-});
-
-/* ============ GLOBAL UX: CLICK OUTSIDE & ESC CLEAR SELECTION ============ */
-
-document.addEventListener("click", e => {
-    if (!e.target.closest(".smartuiqisti-upload-container") &&
-        !e.target.closest("#suq-preview-modal") &&
-        !e.target.closest("#suq-confirm-modal") &&
-        !e.target.closest("#suq-download-modal")) {
-
+    
+    /* ================= PREVIEW MODAL ================= */
+    
+    function suqOpenModal() {
         document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
-        document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
-        document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+    
+        const modal = document.getElementById("suq-preview-modal");
+        const card  = document.getElementById("suq-preview-card");
+    
+        modal.style.display = "flex";
+    
+        requestAnimationFrame(() => {
+            card.classList.remove("scale-95", "opacity-0");
+            card.classList.add("scale-100", "opacity-100");
+        });
     }
-});
-
-document.addEventListener("keydown", e => {
-    if (e.key === "Escape") {
-        document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
-        document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
-        document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+    
+    function suqCloseModal() {
+        const modal = document.getElementById("suq-preview-modal");
+        const card  = document.getElementById("suq-preview-card");
+    
+        card.classList.add("scale-95", "opacity-0");
+        card.classList.remove("scale-100", "opacity-100");
+    
+        setTimeout(() => { modal.style.display = "none"; }, 180);
     }
-});
-</script>
+    
+    function suqHandlePreview(file) {
+        const lowerName = file.name.toLowerCase();
+    
+        if (
+            file.type.startsWith("image/") ||
+            file.type === "application/pdf" ||
+            lowerName.endsWith(".xlsx") ||
+            lowerName.endsWith(".xls") ||
+            lowerName.endsWith(".csv")
+        ) {
+            suqOpenModal();
+            const content = document.getElementById("suq-modal-content");
+            content.innerHTML = "";
+    
+            if (file.type.startsWith("image/")) {
+                content.innerHTML = `
+                    <div class="flex justify-center">
+                        <img src="${URL.createObjectURL(file)}"
+                             class="rounded-xl shadow-lg" />
+                    </div>`;
+            }
+            else if (file.type === "application/pdf") {
+                content.innerHTML = `
+                    <iframe src="${URL.createObjectURL(file)}"
+                            class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
+            }
+            else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: "array" });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const html = XLSX.utils.sheet_to_html(sheet);
+    
+                    content.innerHTML =
+                        `<div class="overflow-auto suq-scroll">${html}</div>`;
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            else if (lowerName.endsWith(".csv")) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const csv = e.target.result;
+                    const wb = XLSX.read(csv, { type: "string" });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const html = XLSX.utils.sheet_to_html(sheet);
+    
+                    content.innerHTML =
+                        `<div class="overflow-auto suq-scroll">${html}</div>`;
+                };
+                reader.readAsText(file);
+            }
+        } else {
+            suqCloseModal();
+            suqConfirmDownload(file);
+        }
+    }
+    
+    let suqFullscreen = false;
+    function suqToggleFullscreen() {
+        const card = document.getElementById("suq-preview-card");
+        suqFullscreen = !suqFullscreen;
+        if (suqFullscreen) card.classList.add("suq-fullscreen");
+        else card.classList.remove("suq-fullscreen");
+    }
+    
+    window.addEventListener("resize", () => {
+        const modal = document.getElementById("suq-preview-modal");
+        const card = document.getElementById("suq-preview-card");
+        if (modal.style.display === "flex") card.style.margin = "auto";
+    });
+    
+    /* Close preview modal by clicking outside */
+    document.getElementById("suq-preview-modal").addEventListener("click", (e) => {
+        const card = document.getElementById("suq-preview-card");
+        if (!card.contains(e.target)) {
+            suqCloseModal();
+        }
+    });
+    
+    /* ================= CONFIRM DELETE MODAL ================= */
+    
+    let suqDeleteCallback = null;
+    
+    function suqConfirmDelete(message, callback) {
+        document.getElementById("suq-confirm-text").textContent = message;
+        suqDeleteCallback = callback;
+    
+        const modal = document.getElementById("suq-confirm-modal");
+        const card  = document.getElementById("suq-confirm-card");
+    
+        modal.style.display = "flex";
+        requestAnimationFrame(() => {
+            card.classList.remove("scale-95", "opacity-0");
+            card.classList.add("scale-100", "opacity-100");
+        });
+    
+        document.getElementById("suq-confirm-yes").onclick = () => {
+            if (typeof suqDeleteCallback === "function") suqDeleteCallback();
+            suqCloseConfirm();
+        };
+    }
+    
+    function suqCloseConfirm() {
+        const modal = document.getElementById("suq-confirm-modal");
+        const card  = document.getElementById("suq-confirm-card");
+    
+        card.classList.add("scale-95", "opacity-0");
+        card.classList.remove("scale-100", "opacity-100");
+    
+        setTimeout(() => { modal.style.display = "none"; }, 180);
+    }
+    
+    /* Close confirm modal by clicking outside */
+    document.getElementById("suq-confirm-modal").addEventListener("click", (e) => {
+        const card = document.getElementById("suq-confirm-card");
+        if (!card.contains(e.target)) suqCloseConfirm();
+    });
+    
+    /* ================= DOWNLOAD CONFIRM MODAL ================= */
+    
+    let suqDownloadUrl = null;
+    
+    function suqConfirmDownload(file) {
+        const modal = document.getElementById("suq-download-modal");
+        const card  = document.getElementById("suq-download-card");
+        const text  = document.getElementById("suq-download-text");
+        const actionBtn = document.getElementById("suq-download-yes");
+    
+        suqDownloadUrl = URL.createObjectURL(file);
+        text.textContent = `"${file.name}" cannot be previewed.`;
+    
+        actionBtn.setAttribute("href", suqDownloadUrl);
+        actionBtn.setAttribute("download", file.name);
+    
+        modal.style.display = "flex";
+        requestAnimationFrame(() => {
+            card.classList.remove("scale-95", "opacity-0");
+            card.classList.add("scale-100", "opacity-100");
+        });
+    }
+    
+    function suqCloseDownload() {
+        const modal = document.getElementById("suq-download-modal");
+        const card  = document.getElementById("suq-download-card");
+    
+        card.classList.add("scale-95", "opacity-0");
+        card.classList.remove("scale-100", "opacity-100");
+    
+        setTimeout(() => {
+            modal.style.display = "none";
+            if (suqDownloadUrl) {
+                URL.revokeObjectURL(suqDownloadUrl);
+                suqDownloadUrl = null;
+            }
+        }, 180);
+    }
+    
+    /* Close download modal by clicking outside */
+    document.getElementById("suq-download-modal").addEventListener("click", (e) => {
+        const card = document.getElementById("suq-download-card");
+        if (!card.contains(e.target)) suqCloseDownload();
+    });
+    
+    /* ============ GLOBAL UX: CLICK OUTSIDE & ESC CLEAR SELECTION ============ */
+    
+    document.addEventListener("click", e => {
+        if (!e.target.closest(".smartuiqisti-upload-container") &&
+            !e.target.closest("#suq-preview-modal") &&
+            !e.target.closest("#suq-confirm-modal") &&
+            !e.target.closest("#suq-download-modal")) {
+    
+            document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
+            document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
+            document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+        }
+    });
+    
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+            document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
+            document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
+            document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+        }
+    });
+    </script>
+        

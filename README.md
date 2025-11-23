@@ -56,7 +56,8 @@ php artisan vendor:publish --tag=smartuiqisti-config
             inner-accepted-class=""
             required
             ai-enable
-            preview-outside
+            previewOutside
+            bulkDelete
         />
 ```
 

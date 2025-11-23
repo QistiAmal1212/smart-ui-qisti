@@ -24,6 +24,7 @@ class UploadForm extends Component
     public bool $disable;
     public bool $aiEnable;
     public bool $previewOutside;
+    public bool $bulkDelete;
 
     public function __construct(
         string $label = 'Upload',
@@ -44,6 +45,7 @@ class UploadForm extends Component
         bool $disable = false,
         bool $aiEnable = false,
         bool $previewOutside = false,
+        bool $bulkDelete = false,
     ) {
         $this->label = $label;
         $this->maxFile = $maxFile;
@@ -63,6 +65,7 @@ class UploadForm extends Component
         $this->disable = $disable;
         $this->aiEnable = $aiEnable;
         $this->previewOutside = $previewOutside;
+        $this->bulkDelete = $bulkDelete;
     }
 
     public function render()

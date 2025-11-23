@@ -278,11 +278,33 @@ document.addEventListener("DOMContentLoaded", () => {
         const dropzone = component.querySelector(".smartuiqisti-upload-drop");
         const maxSizeMB = {{ $maxSize }};
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
+        const maxFile = {{ $maxFile }};
 
         input.addEventListener("change", function () {
             if (!this.files.length) return;
 
             Array.from(this.files).forEach(file => {
+
+                // ========================
+                //  MAX FILE COUNT CHECK
+                // ========================
+                if (filesArr.length >= maxFile) {
+                    errorMsg.textContent = `Maximum ${maxFile} files allowed.`;
+                    errorMsg.classList.remove("hidden");
+
+                    dropzone.classList.add("suq-error", "suq-shake");
+                    setTimeout(() => dropzone.classList.remove("suq-shake"), 300);
+                    setTimeout(() => {
+                        dropzone.classList.remove("suq-error");
+                        errorMsg.classList.add("hidden");
+                    }, 3000);
+
+                    return;
+                }
+
+                // ========================
+                //  MAX SIZE CHECK
+                // ========================
                 if (file.size > maxSizeBytes) {
                     errorMsg.textContent = `${file.name} exceeds the ${maxSizeMB} MB limit.`;
                     errorMsg.classList.remove("hidden");
@@ -297,6 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
+                // PASS VALIDATION → add
                 filesArr.push(file);
             });
 
@@ -343,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     thumb.innerHTML = `
                         <span class="px-2 py-1 rounded-md text-xs font-semibold 
-                        bg-slate-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">
+                        bg-slate-900/5 dark:bg:white/10 text-slate-700 dark:text-slate-200">
                             ${(file.name.split('.').pop() || "").toUpperCase()}
                         </span>`;
                 }

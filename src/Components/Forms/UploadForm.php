@@ -7,7 +7,7 @@ use Illuminate\View\Component;
 class UploadForm extends Component
 {
     public string $label;
-    public ?int $maxFiles;
+    public ?int $maxFile;
     public ?int $maxSize;
     public string $accept;
     public string $mainColor;
@@ -27,7 +27,7 @@ class UploadForm extends Component
 
     public function __construct(
         string $label = 'Upload',
-        int $maxFiles = 1,
+        int $maxFile = 1,
         int $maxSize = 1,
         string $accept = '.doc,.docx,.xls,.xlsx,.zip,.pdf,.png,.jpg,.jpeg',
         string $mainColor = '#000000',
@@ -46,7 +46,7 @@ class UploadForm extends Component
         bool $previewOutside = false,
     ) {
         $this->label = $label;
-        $this->maxFiles = $maxFiles;
+        $this->maxFile = $maxFile;
         $this->maxSize = $maxSize;
         $this->accept = $accept;
         $this->mainColor = $mainColor;

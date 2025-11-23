@@ -225,10 +225,21 @@
     100% { transform:translateX(0); }
 }
 .suq-shake { animation: suq-shake 0.25s ease-in-out; }
+
+/* SortableJS visual feedback */
+.suq-sort-ghost {
+    opacity: 0.4;
+}
+.suq-sort-drag {
+    transform: scale(1.01);
+}
 </style>
 
 <!-- XLSX LIB -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- SortableJS for drag & drop sorting -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <!-- =========================================================== -->
 <!--                       UPLOAD COMPONENT                       -->
@@ -430,12 +441,31 @@
                 filesArr.forEach(f => dt.items.add(f));
                 input.files = dt.files;
             }
+
+            // Reorder files array when drag & drop sorting happens
+            function reorderFiles(oldIndex, newIndex) {
+                if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
+
+                const moved = filesArr.splice(oldIndex, 1)[0];
+                if (!moved) return;
+
+                filesArr.splice(newIndex, 0, moved);
+                syncInput(); // ensure server receives new order
+            }
     
             function renderPreview() {
                 preview.innerHTML = "";
+
+                // If no files, hide preview + destroy sortable if exists
                 if (!filesArr.length) {
                     preview.classList.add("hidden");
                     suqClearSelection(component);
+
+                    if (preview._sortable) {
+                        preview._sortable.destroy();
+                        preview._sortable = null;
+                    }
+
                     return;
                 }
     
@@ -444,10 +474,12 @@
                 filesArr.forEach((file, index) => {
                     const row = document.createElement("div");
                     row.className =
-                        "flex items-center justify-between p-4 rounded-2xl border shadow-sm " +
+                        "suq-row flex items-center justify-between p-4 rounded-2xl border shadow-sm " +
                         "bg-white/70 dark:bg-slate-800/60 backdrop-blur-xl " +
                         "border-slate-200 dark:border-slate-700 " +
                         "hover:shadow-lg hover:scale-[1.01] transition-all duration-300";
+    
+                    row.dataset.index = index;
     
                     const left = document.createElement("div");
                     left.className = "flex items-center gap-4 min-w-0";
@@ -540,12 +572,30 @@
     
                     preview.appendChild(row);
                 });
+
+                // Destroy previous Sortable instance if exists (avoid duplicates)
+                if (preview._sortable) {
+                    preview._sortable.destroy();
+                    preview._sortable = null;
+                }
+
+                // Enable drag-and-drop sorting for this preview container
+                preview._sortable = new Sortable(preview, {
+                    animation: 150,
+                    ghostClass: "suq-sort-ghost",
+                    dragClass: "suq-sort-drag",
+                    onEnd: function (evt) {
+                        reorderFiles(evt.oldIndex, evt.newIndex);
+                        renderPreview(); // re-render UI according to new order
+                    }
+                });
     
                 updateBulkBar();
             }
         });
     });
-    </script>
+</script>
+
 <script>
     /* Clear selection for one component */
     function suqClearSelection(component) {
@@ -772,5 +822,4 @@
             document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
         }
     });
-    </script>
-        
+</script>

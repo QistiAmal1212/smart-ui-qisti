@@ -2,7 +2,12 @@
 <!--            SMART UI QISTI – UPLOAD + PROFESSIONAL MODAL     -->
 <!-- =========================================================== -->
 
-<!-- GLOBAL PREVIEW MODAL -->
+@php
+    // Default max file if not provided
+    $maxFile = $maxFile ?? 5;
+@endphp
+
+<!-- ========================== PREVIEW MODAL ========================== -->
 <div id="suq-preview-modal"
      style="display:none"
      class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -25,8 +30,8 @@
                            hover:bg-slate-200 dark:hover:bg-slate-600
                            text-slate-700 dark:text-slate-200 transition">
                     <svg xmlns="http://www.w3.org/2000/svg"
-                        class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor" stroke-width="2">
+                         class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor" stroke-width="2">
                         <path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6"/>
                     </svg>
                 </button>
@@ -36,8 +41,8 @@
                         onclick="suqCloseModal()"
                         class="w-10 h-10 flex items-center justify-center rounded-xl dark:text-white  hover:bg-slate-200 dark:hover:bg-slate-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg"
-                        class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor" stroke-width="2">
+                         class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
@@ -52,9 +57,7 @@
     </div>
 </div>
 
-<!-- =========================================================== -->
-<!--             CONFIRM DELETE MODAL (GLOBAL & REUSABLE)        -->
-<!-- =========================================================== -->
+<!-- ======================= CONFIRM DELETE MODAL ====================== -->
 <div id="suq-confirm-modal"
      style="display:none"
      class="fixed inset-0 z-[99999] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -64,26 +67,68 @@
                 border border-slate-200 dark:border-slate-700 shadow-xl
                 scale-95 opacity-0 transition-all duration-200">
 
-        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 text-center">Are you sure want to delete?</h2>
-        <p id="suq-confirm-text" class="mt-2 text-slate-600 dark:text-slate-300 text-sm text-center">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 text-center">
+            Are you sure want to delete?
+        </h2>
+
+        <p id="suq-confirm-text"
+           class="mt-2 text-slate-600 dark:text-slate-300 text-sm text-center">
             Are you sure you want to delete this file?
         </p>
 
         <div class="mt-6 flex items-center justify-end gap-3">
             <button type="button"
-                onclick="suqCloseConfirm()"
-                class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition">
+                    onclick="suqCloseConfirm()"
+                    class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
+                           dark:bg-slate-700 dark:hover:bg-slate-600
+                           text-slate-700 dark:text-slate-200 transition">
                 Cancel
             </button>
 
             <button type="button" id="suq-confirm-yes"
-                class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition">
+                    class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition">
                 Delete
             </button>
         </div>
     </div>
 </div>
 
+<!-- ==================== DOWNLOAD CONFIRMATION MODAL ================== -->
+<div id="suq-download-modal"
+     style="display:none"
+     class="fixed inset-0 z-[99999] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+
+    <div id="suq-download-card"
+         class="w-full max-w-sm p-6 rounded-2xl bg-white dark:bg-slate-900 
+                border border-slate-200 dark:border-slate-700 shadow-xl
+                scale-95 opacity-0 transition-all duration-200">
+
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 text-center">
+            Download file?
+        </h2>
+
+        <p id="suq-download-text"
+           class="mt-2 text-slate-600 dark:text-slate-300 text-sm text-center">
+          
+        </p>
+
+        <div class="mt-6 flex items-center justify-end gap-3">
+            <button type="button"
+                    onclick="suqCloseDownload()"
+                    class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
+                           dark:bg-slate-700 dark:hover:bg-slate-600
+                           text-slate-700 dark:text-slate-200 transition">
+                Cancel
+            </button>
+
+            <a id="suq-download-yes"
+               class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 
+                      text-white transition cursor-pointer">
+                Download
+            </a>
+        </div>
+    </div>
+</div>
 
 <!-- =========================================================== -->
 <!--                 STYLING + DARK MODE + ERROR STATE           -->
@@ -189,10 +234,8 @@
 
 </style>
 
-
 <!-- XLSX LIB -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 
 <!-- =========================================================== -->
 <!--                       UPLOAD COMPONENT                       -->
@@ -255,7 +298,6 @@
         <div class="suq-preview suq-preview-outside hidden space-y-3 mt-4"></div>
     @endif
 </div>
-
 
 <!-- =========================================================== -->
 <!--                   SCRIPT – MULTIPLE + MODAL                 -->
@@ -366,7 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     thumb.innerHTML = `
                         <span class="px-2 py-1 rounded-md text-xs font-semibold 
-                        bg-slate-900/5 dark:bg:white/10 text-slate-700 dark:text-slate-200">
+                        bg-slate-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">
                             ${(file.name.split('.').pop() || "").toUpperCase()}
                         </span>`;
                 }
@@ -458,46 +500,45 @@ function suqCloseModal() {
 }
 
 function suqHandlePreview(file) {
-    suqOpenModal();
-    const content = document.getElementById("suq-modal-content");
-    content.innerHTML = "";
+    // For previewable types → open preview modal
+    if (file.type.startsWith("image/") ||
+        file.type === "application/pdf" ||
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls")) {
 
-    if (file.type.startsWith("image/")) {
-        content.innerHTML = `
-            <div class="flex justify-center">
-                <img src="${URL.createObjectURL(file)}"
-                     class="rounded-xl shadow-lg" />
-            </div>`;
-    }
-    else if (file.type === "application/pdf") {
-        content.innerHTML = `
-            <iframe src="${URL.createObjectURL(file)}"
-                    class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
-    }
-    else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const data = new Uint8Array(e.target.result);
-            const wb = XLSX.read(data, { type: "array" });
-            const sheet = wb.Sheets[wb.SheetNames[0]];
-            const html = XLSX.utils.sheet_to_html(sheet);
+        suqOpenModal();
+        const content = document.getElementById("suq-modal-content");
+        content.innerHTML = "";
 
-            content.innerHTML =
-                `<div class="overflow-auto suq-scroll">${html}</div>`;
-        };
-        reader.readAsArrayBuffer(file);
-    }
-    else {
-        content.innerHTML = `
-            <div class="space-y-3">
-                <p class="font-semibold">This file type cannot be previewed.</p>
-                <a href="${URL.createObjectURL(file)}"
-                   download="${file.name}"
-                   class="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 
-                          text-white text-sm font-medium transition">
-                    Download file
-                </a>
-            </div>`;
+        if (file.type.startsWith("image/")) {
+            content.innerHTML = `
+                <div class="flex justify-center">
+                    <img src="${URL.createObjectURL(file)}"
+                         class="rounded-xl shadow-lg" />
+                </div>`;
+        }
+        else if (file.type === "application/pdf") {
+            content.innerHTML = `
+                <iframe src="${URL.createObjectURL(file)}"
+                        class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
+        }
+        else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: "array" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const html = XLSX.utils.sheet_to_html(sheet);
+
+                content.innerHTML =
+                    `<div class="overflow-auto suq-scroll">${html}</div>`;
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    } else {
+        // For non-previewable types → open download confirmation modal
+        suqCloseModal();
+        suqConfirmDownload(file);
     }
 }
 
@@ -561,5 +602,56 @@ function suqCloseConfirm() {
 document.getElementById("suq-confirm-modal").addEventListener("click", (e) => {
     const card = document.getElementById("suq-confirm-card");
     if (!card.contains(e.target)) suqCloseConfirm();
+});
+
+
+/* ================= DOWNLOAD CONFIRM MODAL ================= */
+
+let suqDownloadUrl = null;
+
+function suqConfirmDownload(file) {
+    const modal = document.getElementById("suq-download-modal");
+    const card  = document.getElementById("suq-download-card");
+    const text  = document.getElementById("suq-download-text");
+    const actionBtn = document.getElementById("suq-download-yes");
+
+    // Create blob URL
+    suqDownloadUrl = URL.createObjectURL(file);
+
+    // Update text
+    text.textContent = `"${file.name}" cannot be previewed.`;
+
+    // Assign download link
+    actionBtn.setAttribute("href", suqDownloadUrl);
+    actionBtn.setAttribute("download", file.name);
+
+    // Show modal
+    modal.style.display = "flex";
+    requestAnimationFrame(() => {
+        card.classList.remove("scale-95", "opacity-0");
+        card.classList.add("scale-100", "opacity-100");
+    });
+}
+
+function suqCloseDownload() {
+    const modal = document.getElementById("suq-download-modal");
+    const card  = document.getElementById("suq-download-card");
+
+    card.classList.add("scale-95", "opacity-0");
+    card.classList.remove("scale-100", "opacity-100");
+
+    setTimeout(() => {
+        modal.style.display = "none";
+        if (suqDownloadUrl) {
+            URL.revokeObjectURL(suqDownloadUrl);
+            suqDownloadUrl = null;
+        }
+    }, 180);
+}
+
+/* Close download modal by clicking outside */
+document.getElementById("suq-download-modal").addEventListener("click", (e) => {
+    const card = document.getElementById("suq-download-card");
+    if (!card.contains(e.target)) suqCloseDownload();
 });
 </script>

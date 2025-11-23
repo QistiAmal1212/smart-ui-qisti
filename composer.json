@@ -2,7 +2,7 @@
     "name": "qisti/smart-ui-qisti",
     "description": "Local Smart UI components for the Qisti app.",
     "type": "library",
-    "version": "1.0.0",
+    "version": "0.0.2",
     "autoload": {
         "psr-4": {
             "Qisti\\SmartUi\\": "src/"

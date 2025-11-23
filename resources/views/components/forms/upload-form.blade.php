@@ -19,7 +19,7 @@
 
         <!-- HEADER -->
         <div class="flex items-center justify-between px-2 p-2 border-b border-slate-200 bg-slate-50">
-            <h2 class="text-base sm:text-lg font-semibold"></h2>
+            <h2 class="text-base sm:text-lg font-semibold">File Preview</h2>
 
             <div class="flex items-center gap-2">
 
@@ -52,7 +52,7 @@
 
         <!-- CONTENT -->
         <div id="suq-modal-content"
-             class="pb-4 sm:pb-4 overflow-auto max-h-[calc(90vh-72px)] suq-scroll"></div>
+             class="pb-4 sm:pb-4 overflow-auto max-h-[calc(90vh-72px)] suq-scroll flex justify-center py-2"></div>
 
     </div>
 </div>
@@ -108,9 +108,7 @@
         </h2>
 
         <p id="suq-download-text"
-           class="mt-2 text-slate-600 dark:text-slate-300 text-sm text-center">
-          
-        </p>
+           class="mt-2 text-slate-600 dark:text-slate-300 text-sm text-center"></p>
 
         <div class="mt-6 flex items-center justify-end gap-3">
             <button type="button"
@@ -139,7 +137,7 @@
 .suq-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 .suq-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Excel table */
+/* Excel/CSV table */
 #suq-modal-content table {
     width:100%!important;
     border-collapse:collapse;
@@ -231,7 +229,6 @@
     100% { transform:translateX(0); }
 }
 .suq-shake { animation: suq-shake 0.25s ease-in-out; }
-
 </style>
 
 <!-- XLSX LIB -->
@@ -297,6 +294,31 @@
     @if($previewOutside)
         <div class="suq-preview suq-preview-outside hidden space-y-3 mt-4"></div>
     @endif
+
+    <!-- ==================== BULK ACTION BAR (PER COMPONENT) ==================== -->
+    <div class="suq-bulk-bar hidden fixed bottom-6 left-1/2 -translate-x-1/2
+                px-6 py-3 rounded-2xl shadow-xl border
+                bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl
+                border-slate-300 dark:border-slate-600
+                flex items-center gap-4 z-[999999]">
+
+        <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <span class="suq-selected-count">0</span> selected
+        </span>
+
+        <button type="button"
+                class="suq-clear-btn px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
+                       dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200
+                       text-sm transition">
+            Clear
+        </button>
+
+        <button type="button"
+                class="suq-bulk-delete-btn px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700
+                       text-white text-sm font-semibold transition">
+            Delete Selected
+        </button>
+    </div>
 </div>
 
 <!-- =========================================================== -->
@@ -322,14 +344,52 @@ document.addEventListener("DOMContentLoaded", () => {
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
         const maxFile = {{ $maxFile }};
 
+        const bulkBar = component.querySelector(".suq-bulk-bar");
+        const bulkDeleteBtn = component.querySelector(".suq-bulk-delete-btn");
+        const clearBtn = component.querySelector(".suq-clear-btn");
+        const selectedCountEl = component.querySelector(".suq-selected-count");
+
+        function updateBulkBar() {
+            if (!bulkBar || !selectedCountEl) return;
+            const checked = component.querySelectorAll(".suq-file-check:checked");
+            const selectedCount = checked.length;
+            selectedCountEl.textContent = selectedCount;
+            if (selectedCount > 0) bulkBar.classList.remove("hidden");
+            else bulkBar.classList.add("hidden");
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener("click", () => {
+                suqClearSelection(component);
+            });
+        }
+
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener("click", () => {
+                const checks = component.querySelectorAll(".suq-file-check:checked");
+                if (!checks.length) return;
+
+                const indexes = [...checks].map(c => Number(c.dataset.index));
+
+                suqConfirmDelete(`Delete ${indexes.length} selected files?`, () => {
+                    indexes.sort((a, b) => b - a);
+                    indexes.forEach(i => {
+                        if (i >= 0 && i < filesArr.length) {
+                            filesArr.splice(i, 1);
+                        }
+                    });
+
+                    syncInput();
+                    renderPreview();
+                    suqClearSelection(component);
+                });
+            });
+        }
+
         input.addEventListener("change", function () {
             if (!this.files.length) return;
 
             Array.from(this.files).forEach(file => {
-
-                // ========================
-                //  MAX FILE COUNT CHECK
-                // ========================
                 if (filesArr.length >= maxFile) {
                     errorMsg.textContent = `Maximum ${maxFile} files allowed.`;
                     errorMsg.classList.remove("hidden");
@@ -344,9 +404,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                // ========================
-                //  MAX SIZE CHECK
-                // ========================
                 if (file.size > maxSizeBytes) {
                     errorMsg.textContent = `${file.name} exceeds the ${maxSizeMB} MB limit.`;
                     errorMsg.classList.remove("hidden");
@@ -361,7 +418,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                // PASS VALIDATION → add
                 filesArr.push(file);
             });
 
@@ -379,6 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
             preview.innerHTML = "";
             if (!filesArr.length) {
                 preview.classList.add("hidden");
+                suqClearSelection(component);
                 return;
             }
 
@@ -394,6 +451,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const left = document.createElement("div");
                 left.className = "flex items-center gap-4 min-w-0";
+
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "suq-file-check w-4 h-4 accent-slate-700 dark:accent-slate-300 cursor-pointer";
+                checkbox.dataset.index = index;
+                checkbox.addEventListener("change", updateBulkBar);
+                left.appendChild(checkbox);
 
                 const thumb = document.createElement("div");
                 thumb.className =
@@ -443,7 +507,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             d="M2.458 12C3.732 7.943 7.477 5 12 5c4.523 0 8.268 2.943 9.542 7-1.274 4.057-5.019 7-9.542 7-4.523 0-8.268-2.943-9.542-7z"/>
                         <circle cx="12" cy="12" r="3"/>
                     </svg>`;
-                prevBtn.onclick = () => suqHandlePreview(file);
+                prevBtn.onclick = () => {
+                    suqClearSelection(component);
+                    suqHandlePreview(file);
+                };
 
                 const rmBtn = document.createElement("button");
                 rmBtn.type = "button";
@@ -461,6 +528,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         filesArr.splice(index, 1);
                         syncInput();
                         renderPreview();
+                        suqClearSelection(component);
                     });
                 };
 
@@ -470,14 +538,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 preview.appendChild(row);
             });
+
+            updateBulkBar();
         }
     });
 });
 
+/* Clear selection for one component */
+function suqClearSelection(component) {
+    if (!component) return;
+    const checks = component.querySelectorAll(".suq-file-check");
+    checks.forEach(c => c.checked = false);
+
+    const bar = component.querySelector(".suq-bulk-bar");
+    if (bar) bar.classList.add("hidden");
+
+    const countEl = component.querySelector(".suq-selected-count");
+    if (countEl) countEl.textContent = 0;
+}
 
 /* ================= PREVIEW MODAL ================= */
 
 function suqOpenModal() {
+    document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
+
     const modal = document.getElementById("suq-preview-modal");
     const card  = document.getElementById("suq-preview-card");
 
@@ -500,11 +584,15 @@ function suqCloseModal() {
 }
 
 function suqHandlePreview(file) {
-    // For previewable types → open preview modal
-    if (file.type.startsWith("image/") ||
+    const lowerName = file.name.toLowerCase();
+
+    if (
+        file.type.startsWith("image/") ||
         file.type === "application/pdf" ||
-        file.name.endsWith(".xlsx") ||
-        file.name.endsWith(".xls")) {
+        lowerName.endsWith(".xlsx") ||
+        lowerName.endsWith(".xls") ||
+        lowerName.endsWith(".csv")
+    ) {
 
         suqOpenModal();
         const content = document.getElementById("suq-modal-content");
@@ -522,7 +610,7 @@ function suqHandlePreview(file) {
                 <iframe src="${URL.createObjectURL(file)}"
                         class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
         }
-        else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+        else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
             const reader = new FileReader();
             reader.onload = function (e) {
                 const data = new Uint8Array(e.target.result);
@@ -535,8 +623,20 @@ function suqHandlePreview(file) {
             };
             reader.readAsArrayBuffer(file);
         }
+        else if (lowerName.endsWith(".csv")) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csv = e.target.result;
+                const wb = XLSX.read(csv, { type: "string" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const html = XLSX.utils.sheet_to_html(sheet);
+
+                content.innerHTML =
+                    `<div class="overflow-auto suq-scroll">${html}</div>`;
+            };
+            reader.readAsText(file);
+        }
     } else {
-        // For non-previewable types → open download confirmation modal
         suqCloseModal();
         suqConfirmDownload(file);
     }
@@ -563,7 +663,6 @@ document.getElementById("suq-preview-modal").addEventListener("click", (e) => {
         suqCloseModal();
     }
 });
-
 
 /* ================= CONFIRM DELETE MODAL ================= */
 
@@ -604,7 +703,6 @@ document.getElementById("suq-confirm-modal").addEventListener("click", (e) => {
     if (!card.contains(e.target)) suqCloseConfirm();
 });
 
-
 /* ================= DOWNLOAD CONFIRM MODAL ================= */
 
 let suqDownloadUrl = null;
@@ -615,17 +713,12 @@ function suqConfirmDownload(file) {
     const text  = document.getElementById("suq-download-text");
     const actionBtn = document.getElementById("suq-download-yes");
 
-    // Create blob URL
     suqDownloadUrl = URL.createObjectURL(file);
-
-    // Update text
     text.textContent = `"${file.name}" cannot be previewed.`;
 
-    // Assign download link
     actionBtn.setAttribute("href", suqDownloadUrl);
     actionBtn.setAttribute("download", file.name);
 
-    // Show modal
     modal.style.display = "flex";
     requestAnimationFrame(() => {
         card.classList.remove("scale-95", "opacity-0");
@@ -653,5 +746,27 @@ function suqCloseDownload() {
 document.getElementById("suq-download-modal").addEventListener("click", (e) => {
     const card = document.getElementById("suq-download-card");
     if (!card.contains(e.target)) suqCloseDownload();
+});
+
+/* ============ GLOBAL UX: CLICK OUTSIDE & ESC CLEAR SELECTION ============ */
+
+document.addEventListener("click", e => {
+    if (!e.target.closest(".smartuiqisti-upload-container") &&
+        !e.target.closest("#suq-preview-modal") &&
+        !e.target.closest("#suq-confirm-modal") &&
+        !e.target.closest("#suq-download-modal")) {
+
+        document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
+        document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
+        document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+    }
+});
+
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+        document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
+        document.querySelectorAll(".suq-file-check").forEach(c => c.checked = false);
+        document.querySelectorAll(".suq-selected-count").forEach(c => c.textContent = 0);
+    }
 });
 </script>

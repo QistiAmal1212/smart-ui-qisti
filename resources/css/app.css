@@ -10,7 +10,7 @@
     --smartuiqisti-drop-active-bg: #dbeafe;
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
     :root {
         --smartuiqisti-primary: #60a5fa;
         --smartuiqisti-drop-bg: #0f172a;
@@ -18,7 +18,14 @@
         --smartuiqisti-drop-active: #3b82f6;
         --smartuiqisti-drop-active-bg: #1e293b;
     }
-}
+} */
+ .dark {
+        --smartuiqisti-primary: #60a5fa;
+        --smartuiqisti-drop-bg: #0f172a;
+        --smartuiqisti-drop-border: #334155;
+        --smartuiqisti-drop-active: #3b82f6;
+        --smartuiqisti-drop-active-bg: #1e293b;
+    }
 
 /* ------------------------------
   Tailwind
@@ -38,7 +45,7 @@
 }
 
 .smartuiqisti-upload-icon-circle {
-    @apply w-13 h-13 rounded-full border-2 mx-auto mb-3 flex items-center justify-center;
+    @apply rounded-full border-2 mx-auto mb-3 flex items-center justify-center;
     border-color: var(--smartuiqisti-primary);
     color: var(--smartuiqisti-primary);
 }

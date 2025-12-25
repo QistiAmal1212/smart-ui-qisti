@@ -22,6 +22,12 @@
     }
 
     $wireAttributes = $attributes->whereStartsWith('wire:');
+
+    $wireModelAttribute = collect($attributes->getAttributes())->first(function ($value, $key) {
+        return \Illuminate\Support\Str::startsWith($key, 'wire:model');
+    });
+
+    $suqId = $attributes->get('data-suq-id') ?? $wireModelAttribute ?? 'smartuiqisti-upload';
 @endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
@@ -266,8 +272,12 @@
 <!-- =========================================================== -->
 
 <div class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
+     wire:ignore
      data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      data-auto-compress="{{ $autoCompress ? '1' : '0' }}"
+     data-max-size="{{ $maxSize }}"
+     data-max-files="{{ $maxFiles ?? $maxFile }}"
+     data-suq-id="{{ $suqId }}"
      @if($styles)
      style="{{ implode(' ', $styles) }}"
  @endif
@@ -429,8 +439,10 @@ return new Promise(resolve => {
 });
 }
 
+window.suqUploaderStore = window.suqUploaderStore || {};
 
-document.addEventListener("DOMContentLoaded", () => {
+
+function suqInitUploadComponents() {
     const components = document.querySelectorAll(".smartuiqisti-upload-container");
 
     components.forEach(component => {
@@ -441,14 +453,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!input || !preview) return;
 
-        const bulkEnabled = component.dataset.bulkDelete === "1";
+        if (component.dataset.suqInit === "1") return;
+        component.dataset.suqInit = "1";
 
-        let filesArr = [];
+        const uploaderId = component.dataset.suqId || "smartuiqisti-upload";
+        const store = window.suqUploaderStore || (window.suqUploaderStore = {});
+        let filesArr = store[uploaderId];
+        if (!Array.isArray(filesArr)) {
+            filesArr = [];
+            store[uploaderId] = filesArr;
+        }
+
+        const bulkEnabled = component.dataset.bulkDelete === "1";
         const errorMsg = component.querySelector(".suq-error-msg");
         const dropzone = component.querySelector(".smartuiqisti-upload-drop");
-        const maxSizeMB = {{ $maxSize }};
+        const maxSizeMB = Number(component.dataset.maxSize) || 1;
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
-        const maxFilesLimit = {{ $maxFiles ?? $maxFile }};
+        const maxFilesLimit = Number(component.dataset.maxFiles) || 1;
 
         const bulkBar         = bulkEnabled ? component.querySelector(".suq-bulk-bar")         : null;
         const bulkDeleteBtn   = bulkEnabled ? component.querySelector(".suq-bulk-delete-btn")  : null;
@@ -700,8 +721,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updateBulkBar();
         }
+
+        syncInput();
+        renderPreview();
     });
-});
+}
+
+function suqRunUploadInitialization() {
+    suqInitUploadComponents();
+    if (typeof suqRegisterModalHandlers === "function") {
+        suqRegisterModalHandlers();
+    }
+}
+
+function suqAttachLivewireHook() {
+    if (window.suqLivewireHookRegistered) return;
+    if (!window.Livewire) return;
+
+    window.Livewire.hook("message.processed", suqRunUploadInitialization);
+    window.suqLivewireHookRegistered = true;
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        suqRunUploadInitialization();
+        suqAttachLivewireHook();
+    });
+} else {
+    suqRunUploadInitialization();
+    suqAttachLivewireHook();
+}
+
+document.addEventListener("livewire:load", suqAttachLivewireHook);
 </script>
 
 <!-- =========================================================== -->
@@ -720,6 +771,38 @@ function suqClearSelection(component) {
 
     const countEl = component.querySelector(".suq-selected-count");
     if (countEl) countEl.textContent = 0;
+}
+
+function suqRegisterModalHandlers() {
+    const previewModal = document.getElementById("suq-preview-modal");
+    if (previewModal && !previewModal.dataset.suqHandlersInit) {
+        previewModal.dataset.suqHandlersInit = "1";
+        previewModal.addEventListener("click", (e) => {
+            const card = document.getElementById("suq-preview-card");
+            if (!card || card.contains(e.target)) return;
+            suqCloseModal();
+        });
+    }
+
+    const confirmModal = document.getElementById("suq-confirm-modal");
+    if (confirmModal && !confirmModal.dataset.suqHandlersInit) {
+        confirmModal.dataset.suqHandlersInit = "1";
+        confirmModal.addEventListener("click", (e) => {
+            const card = document.getElementById("suq-confirm-card");
+            if (!card || card.contains(e.target)) return;
+            suqCloseConfirm();
+        });
+    }
+
+    const downloadModal = document.getElementById("suq-download-modal");
+    if (downloadModal && !downloadModal.dataset.suqHandlersInit) {
+        downloadModal.dataset.suqHandlersInit = "1";
+        downloadModal.addEventListener("click", (e) => {
+            const card = document.getElementById("suq-download-card");
+            if (!card || card.contains(e.target)) return;
+            suqCloseDownload();
+        });
+    }
 }
 
 /* ================= PREVIEW MODAL ================= */
@@ -876,15 +959,7 @@ function suqToggleFullscreen() {
 window.addEventListener("resize", () => {
     const modal = document.getElementById("suq-preview-modal");
     const card = document.getElementById("suq-preview-card");
-    if (modal.style.display === "flex") card.style.margin = "auto";
-});
-
-/* Close preview modal by clicking outside */
-document.getElementById("suq-preview-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-preview-card");
-    if (!card.contains(e.target)) {
-        suqCloseModal();
-    }
+    if (modal && card && modal.style.display === "flex") card.style.margin = "auto";
 });
 
 /* ================= CONFIRM DELETE MODAL ================= */
@@ -919,12 +994,6 @@ function suqCloseConfirm() {
 
     setTimeout(() => { modal.style.display = "none"; }, 180);
 }
-
-/* Close confirm modal by clicking outside */
-document.getElementById("suq-confirm-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-confirm-card");
-    if (!card.contains(e.target)) suqCloseConfirm();
-});
 
 /* ================= DOWNLOAD CONFIRM MODAL ================= */
 
@@ -965,11 +1034,9 @@ function suqCloseDownload() {
     }, 180);
 }
 
-/* Close download modal by clicking outside */
-document.getElementById("suq-download-modal").addEventListener("click", (e) => {
-    const card = document.getElementById("suq-download-card");
-    if (!card.contains(e.target)) suqCloseDownload();
-});
+if (typeof suqRegisterModalHandlers === "function") {
+    suqRegisterModalHandlers();
+}
 
 /* ============ GLOBAL UX: CLICK OUTSIDE & ESC CLEAR SELECTION ============ */
 

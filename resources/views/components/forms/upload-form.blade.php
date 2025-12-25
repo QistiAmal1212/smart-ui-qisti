@@ -430,12 +430,10 @@ return new Promise(resolve => {
 }
 
 
-const suqInitUploadComponents = () => {
+document.addEventListener("DOMContentLoaded", () => {
     const components = document.querySelectorAll(".smartuiqisti-upload-container");
 
     components.forEach(component => {
-        if (component.dataset.suqUploadInit === "1") return;
-        component.dataset.suqUploadInit = "1";
         const input = component.querySelector(".suq-input");
         let preview =
             component.querySelector(".suq-preview-outside") ||
@@ -703,20 +701,7 @@ const suqInitUploadComponents = () => {
             updateBulkBar();
         }
     });
-};
-
-document.addEventListener("DOMContentLoaded", suqInitUploadComponents);
-
-const suqRegisterLivewireUploadHook = () => {
-    if (window.__suqUploadLivewireHooked || typeof window.Livewire === "undefined") return;
-    window.__suqUploadLivewireHooked = true;
-    window.Livewire.hook("message.processed", () => {
-        suqInitUploadComponents();
-    });
-};
-
-document.addEventListener("livewire:load", suqRegisterLivewireUploadHook);
-suqRegisterLivewireUploadHook();
+});
 </script>
 
 <!-- =========================================================== -->

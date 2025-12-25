@@ -20,6 +20,8 @@
     if (! empty($dropzoneActiveColor)) {
         $styles[] = "--smartuiqisti-drop-active-bg: {$dropzoneActiveColor};";
     }
+
+    $wireAttributes = $attributes->whereStartsWith('wire:');
 @endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
@@ -292,7 +294,7 @@
         </div>
 
         <div class="smartuiqisti-upload-inner-sub-title {{ $innerTitleSubClass }}">
-            Maximum upload file size is {{ $maxSize }} MB.
+            Max upload size is {{ $maxSize }} MB.
         </div>
 
         <div class="smartuiqisti-upload-inner-accepted-file-type-text {{ $innerAcceptedClass }}">
@@ -305,7 +307,9 @@
                    multiple
                    accept="{{ $accept }}"
                    class="suq-input hidden"
-                   @if($disable) disabled @endif>
+                   {{ $wireAttributes }}
+                   @if($disable) disabled @endif
+                   >
         </label>
 
         @if(!$previewOutside)

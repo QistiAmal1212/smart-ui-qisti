@@ -2,6 +2,25 @@
 <!--            SMART UI QISTI – UPLOAD + PROFESSIONAL MODAL     -->
 <!-- =========================================================== -->
 
+@php
+    $styles = [];
+
+    if (! empty($mainColor)) {
+        $styles[] = "--smartuiqisti-primary: {$mainColor};";
+    }
+
+    if (! empty($dropzoneColor)) {
+        $styles[] = "--smartuiqisti-drop-bg: {$dropzoneColor};";
+    }
+
+    if (! empty($dropzoneBorderColor)) {
+        $styles[] = "--smartuiqisti-drop-border: {$dropzoneBorderColor};";
+    }
+
+    if (! empty($dropzoneActiveColor)) {
+        $styles[] = "--smartuiqisti-drop-active-bg: {$dropzoneActiveColor};";
+    }
+@endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
 <div id="suq-preview-modal"
@@ -18,7 +37,6 @@
             <h2 class="text-base sm:text-lg font-semibold">File Preview</h2>
 
             <div class="flex items-center gap-2">
-
                 <!-- FULLSCREEN BUTTON -->
                 <button type="button"
                         onclick="suqToggleFullscreen()"
@@ -245,15 +263,13 @@
 <!--                       UPLOAD COMPONENT                       -->
 <!-- =========================================================== -->
 
-<div class="smartuiqisti-upload-container {{ $dropzoneClass }}"
+<div class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
      data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      data-auto-compress="{{ $autoCompress ? '1' : '0' }}"
-     style="
-        --suq-main-color: {{ $mainColor }};
-        --suq-drop-bg: {{ $dropzoneColor }};
-        --suq-drop-border: {{ $dropzoneBorderColor }};
-        --suq-drop-active-bg: {{ $dropzoneActiveColor }};
-     ">
+     @if($styles)
+     style="{{ implode(' ', $styles) }}"
+ @endif
+     >
 
     <div class="smartuiqisti-upload-label {{ $labelClass }}">
         {{ $label }} @if($required)<span class="smartuiqisti-upload-required">*</span>@endif
@@ -262,7 +278,7 @@
     <!-- Dropzone -->
     <div class="smartuiqisti-upload-drop @if($disable) opacity-50 cursor-not-allowed @endif">
 
-        <div class="smartuiqisti-upload-icon-circle {{ $innerIconClass }}">
+        <div class="smartuiqisti-upload-icon-circle {{ $innerIconClass }} w-14 h-14 flex items-center justify-center mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="none" viewBox="0 0 24 24">
                 <path d="M12 15.5V5m0 0 4 4M12 5l-4 4"
                       stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -428,7 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const dropzone = component.querySelector(".smartuiqisti-upload-drop");
         const maxSizeMB = {{ $maxSize }};
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
-        const maxFile = {{ $maxFile }};
+        const maxFilesLimit = {{ $maxFiles ?? $maxFile }};
 
         const bulkBar         = bulkEnabled ? component.querySelector(".suq-bulk-bar")         : null;
         const bulkDeleteBtn   = bulkEnabled ? component.querySelector(".suq-bulk-delete-btn")  : null;
@@ -489,8 +505,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 // ================================================================
 
-                if (filesArr.length >= maxFile) {
-                    errorMsg.textContent = `Maximum ${maxFile} files allowed.`;
+                if (filesArr.length >= maxFilesLimit) {
+                    errorMsg.textContent = `Maximum ${maxFilesLimit} files allowed.`;
                     errorMsg.classList.remove("hidden");
 
                     dropzone.classList.add("suq-error", "suq-shake");

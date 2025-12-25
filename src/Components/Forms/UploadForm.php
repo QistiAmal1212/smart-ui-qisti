@@ -26,16 +26,18 @@ class UploadForm extends Component
     public bool $previewOutside;
     public bool $bulkDelete;
     public bool $autoCompress;
+    public ?int $maxFiles;
 
     public function __construct(
         string $label = 'Upload',
         int $maxFile = 1,
+        ?int $maxFiles = null,
         int $maxSize = 1,
         string $accept = '.doc,.docx,.xls,.xlsx,.zip,.pdf,.png,.jpg,.jpeg',
-        string $mainColor = '#000000',
-        string $dropzoneColor = '#ffffff',
-        string $dropzoneBorderColor = '#cccccc',
-        string $dropzoneActiveColor = '#eeeeee',
+        string $mainColor = '',
+        string $dropzoneColor = '',
+        string $dropzoneBorderColor = '',
+        string $dropzoneActiveColor = '',
         string $dropzoneClass = '',
         string $labelClass = '',
         string $innerIconClass = '',
@@ -51,6 +53,7 @@ class UploadForm extends Component
     ) {
         $this->label = $label;
         $this->maxFile = $maxFile;
+        $this->maxFiles = $maxFiles ?? $maxFile;
         $this->maxSize = $maxSize;
         $this->accept = $accept;
         $this->mainColor = $mainColor;

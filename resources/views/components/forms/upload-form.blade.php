@@ -22,7 +22,6 @@
     }
 
     $wireAttributes = $attributes->whereStartsWith('wire:');
-    $hasLivewire = $wireAttributes->count() > 0;
 @endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
@@ -267,7 +266,6 @@
 <!-- =========================================================== -->
 
 <div class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
-     @if($hasLivewire) wire:ignore.self @endif
      data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      data-auto-compress="{{ $autoCompress ? '1' : '0' }}"
      @if($styles)

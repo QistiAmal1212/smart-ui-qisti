@@ -280,7 +280,7 @@
 <!-- =========================================================== -->
 
 <div id="{{ $containerId }}"
-     class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
+     class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full relative"
      wire:ignore
      data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      data-auto-compress="{{ $autoCompress ? '1' : '0' }}"
@@ -345,26 +345,28 @@
 
     @if($bulkDelete)
         <!-- ==================== BULK ACTION BAR (PER COMPONENT) ==================== -->
-        <div class="suq-bulk-bar hidden fixed bottom-6 left-1/2 -translate-x-1/2
-                    px-6 py-3 rounded-2xl shadow-xl border
+        <div class="suq-bulk-bar hidden mt-4 px-6 py-3 rounded-2xl shadow-xl border
                     bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl
                     border-slate-300 dark:border-slate-600
-                    flex items-center gap-4 z-[999999]">
+                    flex items-center gap-4 z-[999999]"
+             data-suq-bulk-id="{{ $suqId }}">
 
             <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                <span class="suq-selected-count">0</span> selected
+                <span class="suq-selected-count" data-suq-bulk-id="{{ $suqId }}">0</span> selected
             </span>
 
             <button type="button"
                     class="suq-clear-btn px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300
                            dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200
-                           text-sm transition">
+                           text-sm transition"
+                    data-suq-bulk-id="{{ $suqId }}">
                 Clear
             </button>
 
             <button type="button"
                     class="suq-bulk-delete-btn px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700
-                           text-white text-sm font-semibold transition">
+                           text-white text-sm font-semibold transition"
+                    data-suq-bulk-id="{{ $suqId }}">
                 Delete Selected
             </button>
         </div>
@@ -376,6 +378,14 @@
 <!--            AUTO-COMPRESS + CORE UPLOAD LOGIC JS             -->
 <!-- =========================================================== -->
 <script>
+function suqEscapeSelector(value) {
+    if (!value) return "";
+    if (window.CSS && CSS.escape) {
+        return CSS.escape(value);
+    }
+    return value.replace(/(["\\`\[\]\s])/g, "\\$1");
+}
+
 /* ============================================================
    AUTO IMAGE COMPRESSOR (JPG/PNG/WebP) – CLIENT SIDE
    ============================================================ */
@@ -489,10 +499,16 @@ function suqInitUploadComponents() {
         const maxFilesLimit = Number(component.dataset.maxFiles) || 1;
 
         // Cache bulk-action elements when the feature is enabled.
-        const bulkBar         = bulkEnabled ? component.querySelector(".suq-bulk-bar")         : null;
-        const bulkDeleteBtn   = bulkEnabled ? component.querySelector(".suq-bulk-delete-btn")  : null;
-        const clearBtn        = bulkEnabled ? component.querySelector(".suq-clear-btn")        : null;
-        const selectedCountEl = bulkEnabled ? component.querySelector(".suq-selected-count")   : null;
+        const escapedInstanceId = suqEscapeSelector(instanceId);
+        const bulkBarSelector = `.suq-bulk-bar[data-suq-bulk-id="${escapedInstanceId}"]`;
+        const bulkDeleteBtnSelector = `.suq-bulk-delete-btn[data-suq-bulk-id="${escapedInstanceId}"]`;
+        const clearBtnSelector = `.suq-clear-btn[data-suq-bulk-id="${escapedInstanceId}"]`;
+        const selectedCountSelector = `.suq-selected-count[data-suq-bulk-id="${escapedInstanceId}"]`;
+
+        const bulkBar         = bulkEnabled ? component.querySelector(bulkBarSelector)         : null;
+        const bulkDeleteBtn   = bulkEnabled ? component.querySelector(bulkDeleteBtnSelector)   : null;
+        const clearBtn        = bulkEnabled ? component.querySelector(clearBtnSelector)        : null;
+        const selectedCountEl = bulkEnabled ? component.querySelector(selectedCountSelector) : null;
 
         // Update the bulk action bar visibility and counter.
         function updateBulkBar() {

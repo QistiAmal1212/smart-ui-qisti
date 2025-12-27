@@ -3,6 +3,7 @@
 <!-- =========================================================== -->
 
 @php
+    // Build inline style overrides when colors are provided.
     $styles = [];
 
     if (! empty($mainColor)) {
@@ -21,13 +22,20 @@
         $styles[] = "--smartuiqisti-drop-active-bg: {$dropzoneActiveColor};";
     }
 
+    // Preserve any Livewire attributes applied to the file input.
     $wireAttributes = $attributes->whereStartsWith('wire:');
 
+    // Prefer an explicit wire:model attribute if one exists.
     $wireModelAttribute = collect($attributes->getAttributes())->first(function ($value, $key) {
         return \Illuminate\Support\Str::startsWith($key, 'wire:model');
     });
 
-    $suqId = $attributes->get('data-suq-id') ?? $wireModelAttribute ?? 'smartuiqisti-upload';
+    $attributeId = $attributes->get('id');
+    $providedSuqId = $attributes->get('data-suq-id');
+
+    // Use provided IDs (explicit suq ID, HTML id, or Livewire model) before falling back to a unique value.
+    $suqId = $providedSuqId ?? $attributeId ?? $wireModelAttribute ?? 'smartuiqisti-upload-' . uniqid();
+    $containerId = $attributeId ?? $suqId;
 @endphp
 
 <!-- ========================== PREVIEW MODAL ========================== -->
@@ -271,7 +279,8 @@
 <!--                       UPLOAD COMPONENT                       -->
 <!-- =========================================================== -->
 
-<div class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
+<div id="{{ $containerId }}"
+     class="smartuiqisti-upload-container {{ $dropzoneClass }} w-full"
      wire:ignore
      data-bulk-delete="{{ $bulkDelete ? '1' : '0' }}"
      data-auto-compress="{{ $autoCompress ? '1' : '0' }}"
@@ -327,7 +336,7 @@
         @endif
     </div>
 
-    <!-- error msg -->
+    <!-- Inline error placeholder to show validation messages. -->
     <div class="suq-error-msg hidden text-red-600 dark:text-red-400 text-sm font-medium mt-2"></div>
 
     @if($previewOutside)
@@ -370,81 +379,82 @@
 /* ============================================================
    AUTO IMAGE COMPRESSOR (JPG/PNG/WebP) – CLIENT SIDE
    ============================================================ */
-   async function suqCompressImage(file, quality = 0.7, maxWidth = 1920) {
+async function suqCompressImage(file, quality = 0.7, maxWidth = 1920) {
+    // Skip compression for files that are already lightweight.
+    if (file.size < 200 * 1024) {
+        console.log("Skip compress:", file.name, `(only ${(file.size / 1024).toFixed(2)} KB)`);
+        return file;
+    }
 
-// 🚫 SKIP COMPRESSION FOR SMALL FILES
-if (file.size < 200 * 1024) {
-    console.log("Skip compress:", file.name, `(only ${(file.size/1024).toFixed(2)} KB)`);
-    return file;
-}
+    return new Promise(resolve => {
+        const beforeSize = file.size;
+        console.log("====== COMPRESS START ======");
+        console.log("File:", file.name);
+        console.log("Before:", (beforeSize / 1024).toFixed(2), "KB");
 
-return new Promise(resolve => {
-    const beforeSize = file.size;
-    console.log("====== COMPRESS START ======");
-    console.log("File:", file.name);
-    console.log("Before:", (beforeSize / 1024).toFixed(2), "KB");
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.src = e.target.result;
 
-    const reader = new FileReader();
-    reader.onload = e => {
-        const img = new Image();
-        img.src = e.target.result;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
 
-        img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-
-            // Resize if too big
-            if (width > maxWidth) {
-                height *= maxWidth / width;
-                width = maxWidth;
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(blob => {
-                const newFile = new File(
-                    [blob],
-                    file.name.replace(/\.(png)$/i, ".jpg"),
-                    { type: "image/jpeg", lastModified: Date.now() }
-                );
-
-                const afterSize = newFile.size;
-
-                console.log("After:", (afterSize / 1024).toFixed(2), "KB");
-
-                const diffKB = (beforeSize - afterSize) / 1024;
-                const diffPercent = ((1 - afterSize / beforeSize) * 100).toFixed(1);
-
-                console.log("Reduced:", diffKB.toFixed(2), "KB");
-                console.log("Percent:", diffPercent + "%");
-                console.log("====== COMPRESS END ======\n");
-
-                // If compression is WORSE → keep original
-                if (afterSize > beforeSize) {
-                    console.log("Using original file (compressed is worse)");
-                    resolve(file);
-                } else {
-                    resolve(newFile);
+                // Resize images that exceed the maximum width.
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
                 }
-            }, "image/jpeg", quality);
-        };
-    };
 
-    reader.readAsDataURL(file);
-});
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(blob => {
+                    const newFile = new File(
+                        [blob],
+                        file.name.replace(/\.(png)$/i, ".jpg"),
+                        { type: "image/jpeg", lastModified: Date.now() }
+                    );
+
+                    const afterSize = newFile.size;
+                    console.log("After:", (afterSize / 1024).toFixed(2), "KB");
+
+                    const diffKB = (beforeSize - afterSize) / 1024;
+                    const diffPercent = ((1 - afterSize / beforeSize) * 100).toFixed(1);
+
+                    console.log("Reduced:", diffKB.toFixed(2), "KB");
+                    console.log("Percent:", diffPercent + "%");
+                    console.log("====== COMPRESS END ======\n");
+
+                    // Retain the original file when compression makes it larger.
+                    if (afterSize > beforeSize) {
+                        console.log("Using original file (compressed is worse)");
+                        resolve(file);
+                    } else {
+                        resolve(newFile);
+                    }
+                }, "image/jpeg", quality);
+            };
+        };
+
+        reader.readAsDataURL(file);
+    });
 }
 
+// Shared store keyed by instance IDs so each uploader keeps separate state.
 window.suqUploaderStore = window.suqUploaderStore || {};
+window.suqUploaderInstanceCounter = window.suqUploaderInstanceCounter || 0;
 
 
 function suqInitUploadComponents() {
     const components = document.querySelectorAll(".smartuiqisti-upload-container");
 
+    // Setup each upload block once to avoid duplicate listeners and state.
     components.forEach(component => {
         const input = component.querySelector(".suq-input");
         let preview =
@@ -453,17 +463,24 @@ function suqInitUploadComponents() {
 
         if (!input || !preview) return;
 
+        // Prevent re-initializing components that already registered.
         if (component.dataset.suqInit === "1") return;
         component.dataset.suqInit = "1";
 
-        const uploaderId = component.dataset.suqId || "smartuiqisti-upload";
-        const store = window.suqUploaderStore || (window.suqUploaderStore = {});
-        let filesArr = store[uploaderId];
+        const instanceId =
+            component.dataset.suqId ||
+            component.dataset.suqInstanceId ||
+            `smartuiqisti-upload-${++window.suqUploaderInstanceCounter}`;
+        component.dataset.suqInstanceId = instanceId;
+
+        const store = window.suqUploaderStore;
+        let filesArr = store[instanceId];
         if (!Array.isArray(filesArr)) {
             filesArr = [];
-            store[uploaderId] = filesArr;
+            store[instanceId] = filesArr;
         }
 
+        // Common configuration values coming from the wrapper's data attributes.
         const bulkEnabled = component.dataset.bulkDelete === "1";
         const errorMsg = component.querySelector(".suq-error-msg");
         const dropzone = component.querySelector(".smartuiqisti-upload-drop");
@@ -471,11 +488,13 @@ function suqInitUploadComponents() {
         const maxSizeBytes = maxSizeMB * 1024 * 1024;
         const maxFilesLimit = Number(component.dataset.maxFiles) || 1;
 
+        // Cache bulk-action elements when the feature is enabled.
         const bulkBar         = bulkEnabled ? component.querySelector(".suq-bulk-bar")         : null;
         const bulkDeleteBtn   = bulkEnabled ? component.querySelector(".suq-bulk-delete-btn")  : null;
         const clearBtn        = bulkEnabled ? component.querySelector(".suq-clear-btn")        : null;
         const selectedCountEl = bulkEnabled ? component.querySelector(".suq-selected-count")   : null;
 
+        // Update the bulk action bar visibility and counter.
         function updateBulkBar() {
             if (!bulkEnabled || !bulkBar || !selectedCountEl) return;
 
@@ -488,12 +507,14 @@ function suqInitUploadComponents() {
         }
 
         if (bulkEnabled && clearBtn) {
+            // Reset bulk selection using helper function.
             clearBtn.addEventListener("click", () => {
                 suqClearSelection(component);
             });
         }
 
         if (bulkEnabled && bulkDeleteBtn) {
+            // Remove all selected files after confirming with the user.
             bulkDeleteBtn.addEventListener("click", () => {
                 const checks = component.querySelectorAll(".suq-file-check:checked");
                 if (!checks.length) return;
@@ -531,6 +552,7 @@ function suqInitUploadComponents() {
                 // ================================================================
 
                 if (filesArr.length >= maxFilesLimit) {
+                    // Reject uploads once maximum files limit reached.
                     errorMsg.textContent = `Maximum ${maxFilesLimit} files allowed.`;
                     errorMsg.classList.remove("hidden");
 
@@ -545,6 +567,7 @@ function suqInitUploadComponents() {
                 }
 
                 if (file.size > maxSizeBytes) {
+                    // Reject files that exceed the configured size limit.
                     errorMsg.textContent = `${file.name} exceeds the ${maxSizeMB} MB limit.`;
                     errorMsg.classList.remove("hidden");
 
@@ -565,13 +588,14 @@ function suqInitUploadComponents() {
             renderPreview();
         });
 
+        // Keep the native file input in sync with the internal file array.
         function syncInput() {
             const dt = new DataTransfer();
             filesArr.forEach(f => dt.items.add(f));
             input.files = dt.files;
         }
 
-        // Reorder files array when drag & drop sorting happens
+        // Reorder the stored files array to match drag-and-drop sequence.
         function reorderFiles(oldIndex, newIndex) {
             if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
 
@@ -582,6 +606,7 @@ function suqInitUploadComponents() {
             syncInput(); // ensure server receives new order
         }
 
+        // Rebuild the preview list UI based on the current file order.
         function renderPreview() {
             preview.innerHTML = "";
 
@@ -598,6 +623,7 @@ function suqInitUploadComponents() {
                 return;
             }
 
+            // Always show the container when files exist.
             preview.classList.remove("hidden");
 
             filesArr.forEach((file, index) => {
@@ -622,6 +648,7 @@ function suqInitUploadComponents() {
                     left.appendChild(checkbox);
                 }
 
+                // Build either an image thumbnail or text badge for other file types.
                 const thumb = document.createElement("div");
                 thumb.className =
                     "w-8 h-8 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 " +
@@ -658,6 +685,7 @@ function suqInitUploadComponents() {
                 const actions = document.createElement("div");
                 actions.className = "flex items-center shrink-0 gap-1";
 
+                // Preview button opens modal with file content.
                 const prevBtn = document.createElement("button");
                 prevBtn.type = "button";
                 prevBtn.className =
@@ -675,6 +703,7 @@ function suqInitUploadComponents() {
                     suqHandlePreview(file);
                 };
 
+                // Remove button deletes the file after confirmation.
                 const rmBtn = document.createElement("button");
                 rmBtn.type = "button";
                 rmBtn.className =
@@ -708,7 +737,7 @@ function suqInitUploadComponents() {
                 preview._sortable = null;
             }
 
-            // Enable drag-and-drop sorting for this preview container
+            // Enable drag-and-drop sorting for this preview container.
             preview._sortable = new Sortable(preview, {
                 animation: 150,
                 ghostClass: "suq-sort-ghost",
@@ -727,6 +756,7 @@ function suqInitUploadComponents() {
     });
 }
 
+// Called once on page load and after Livewire updates to refresh the upload components.
 function suqRunUploadInitialization() {
     suqInitUploadComponents();
     if (typeof suqRegisterModalHandlers === "function") {
@@ -734,6 +764,7 @@ function suqRunUploadInitialization() {
     }
 }
 
+// Hook into Livewire lifecycle so the JS reinitializes after updates.
 function suqAttachLivewireHook() {
     if (window.suqLivewireHookRegistered) return;
     if (!window.Livewire) return;
@@ -773,6 +804,7 @@ function suqClearSelection(component) {
     if (countEl) countEl.textContent = 0;
 }
 
+// Setup click-outside handlers for modals to allow closing when clicking backdrop.
 function suqRegisterModalHandlers() {
     const previewModal = document.getElementById("suq-preview-modal");
     if (previewModal && !previewModal.dataset.suqHandlersInit) {
@@ -807,6 +839,7 @@ function suqRegisterModalHandlers() {
 
 /* ================= PREVIEW MODAL ================= */
 
+// Open preview modal with animation.
 function suqOpenModal() {
     document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
 
@@ -821,6 +854,7 @@ function suqOpenModal() {
     });
 }
 
+// Close preview modal and reset animation state.
 function suqCloseModal() {
     const modal = document.getElementById("suq-preview-modal");
     const card  = document.getElementById("suq-preview-card");
@@ -831,124 +865,121 @@ function suqCloseModal() {
     setTimeout(() => { modal.style.display = "none"; }, 180);
 }
 
+// Determine how to preview a file and show either modal content or download dialog.
 function suqHandlePreview(file) {
     const lowerName = file.name.toLowerCase();
-
-    if (
+    const isPreviewable =
         file.type.startsWith("image/") ||
         file.type === "application/pdf" ||
         lowerName.endsWith(".xlsx") ||
         lowerName.endsWith(".xls") ||
-        lowerName.endsWith(".csv")
-    ) {
+        lowerName.endsWith(".csv");
+
+    if (isPreviewable) {
         suqOpenModal();
         const content = document.getElementById("suq-modal-content");
         content.innerHTML = "";
 
         if (file.type.startsWith("image/")) {
+            // Image preview.
             content.innerHTML = `
                 <div class="flex justify-center">
                     <img src="${URL.createObjectURL(file)}"
                          class="rounded-xl shadow-lg" />
                 </div>`;
-        }
-        else if (file.type === "application/pdf") {
+        } else if (file.type === "application/pdf") {
+            // PDF preview via iframe.
             content.innerHTML = `
                 <iframe src="${URL.createObjectURL(file)}"
                         class="rounded-lg border bg-white dark:border-slate-700"></iframe>`;
-        }
-        else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: "array" });
+        } else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+            // Spreadsheet preview rendered as HTML table.
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: "array" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
 
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-
-        // Convert to JSON rows
-        let rows = XLSX.utils.sheet_to_json(sheet, {
-            header: 1,        // return rows as arrays
-            blankrows: false  // remove completely blank rows
-        });
-
-        // Extra filter → remove rows that are all empty values
-        rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
-
-        // Convert JSON → HTML table manually
-        let html = "<table><thead>";
-
-        if (rows.length > 0) {
-            html += "<tr>";
-            rows[0].forEach(h => {
-                html += `<th>${h || ""}</th>`;
-            });
-            html += "</tr></thead><tbody>";
-
-            rows.slice(1).forEach(row => {
-                html += "<tr>";
-                row.forEach(col => {
-                    html += `<td>${col || ""}</td>`;
+                let rows = XLSX.utils.sheet_to_json(sheet, {
+                    header: 1,
+                    blankrows: false
                 });
-                html += "</tr>";
-            });
 
-            html += "</tbody></table>";
-        } else {
-            html = "<p class='p-4 text-slate-500'>No data available.</p>";
+                rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
+
+                let html = "<table><thead>";
+
+                if (rows.length > 0) {
+                    html += "<tr>";
+                    rows[0].forEach(h => {
+                        html += `<th>${h || ""}</th>`;
+                    });
+                    html += "</tr></thead><tbody>";
+
+                    rows.slice(1).forEach(row => {
+                        html += "<tr>";
+                        row.forEach(col => {
+                            html += `<td>${col || ""}</td>`;
+                        });
+                        html += "</tr>";
+                    });
+
+                    html += "</tbody></table>";
+                } else {
+                    html = "<p class='p-4 text-slate-500'>No data available.</p>";
+                }
+
+                content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
+            };
+
+            reader.readAsArrayBuffer(file);
+        } else if (lowerName.endsWith(".csv")) {
+            // CSV preview converted via XLSX parser.
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csv = e.target.result;
+                const wb = XLSX.read(csv, { type: "string" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+
+                let rows = XLSX.utils.sheet_to_json(sheet, {
+                    header: 1,
+                    blankrows: false
+                });
+
+                rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
+
+                let html = "<table><thead>";
+
+                if (rows.length > 0) {
+                    html += "<tr>";
+                    rows[0].forEach(h => html += `<th>${h || ""}</th>`);
+                    html += "</tr></thead><tbody>";
+
+                    rows.slice(1).forEach(row => {
+                        html += "<tr>";
+                        row.forEach(col => html += `<td>${col || ""}</td>`);
+                        html += "</tr>";
+                    });
+
+                    html += "</tbody></table>";
+                } else {
+                    html = "<p class='p-4 text-slate-500'>No data available.</p>";
+                }
+
+                content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
+            };
+
+            reader.readAsText(file);
         }
-
-        content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
-    };
-
-    reader.readAsArrayBuffer(file);
-}
-
-else if (lowerName.endsWith(".csv")) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const csv = e.target.result;
-        const wb = XLSX.read(csv, { type: "string" });
-
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-
-        let rows = XLSX.utils.sheet_to_json(sheet, {
-            header: 1,
-            blankrows: false
-        });
-
-        rows = rows.filter(r => r.some(v => v !== null && v !== undefined && v !== ""));
-
-        let html = "<table><thead>";
-
-        if (rows.length > 0) {
-            html += "<tr>";
-            rows[0].forEach(h => html += `<th>${h || ""}</th>`);
-            html += "</tr></thead><tbody>";
-
-            rows.slice(1).forEach(row => {
-                html += "<tr>";
-                row.forEach(col => html += `<td>${col || ""}</td>`);
-                html += "</tr>";
-            });
-
-            html += "</tbody></table>";
-        } else {
-            html = "<p class='p-4 text-slate-500'>No data available.</p>";
-        }
-
-        content.innerHTML = `<div class="overflow-auto suq-scroll">${html}</div>`;
-    };
-
-    reader.readAsText(file);
-}
-
     } else {
         suqCloseModal();
         suqConfirmDownload(file);
     }
 }
 
+// Track fullscreen state for the preview modal.
 let suqFullscreen = false;
+// Toggle fullscreen appearance for the preview card.
 function suqToggleFullscreen() {
     const card = document.getElementById("suq-preview-card");
     suqFullscreen = !suqFullscreen;
@@ -956,6 +987,7 @@ function suqToggleFullscreen() {
     else card.classList.remove("suq-fullscreen");
 }
 
+// Keep modal centered after viewport resizes.
 window.addEventListener("resize", () => {
     const modal = document.getElementById("suq-preview-modal");
     const card = document.getElementById("suq-preview-card");
@@ -964,8 +996,10 @@ window.addEventListener("resize", () => {
 
 /* ================= CONFIRM DELETE MODAL ================= */
 
+// Hold a callback to run when delete is confirmed.
 let suqDeleteCallback = null;
 
+// Show confirmation dialog before removing files.
 function suqConfirmDelete(message, callback) {
     document.getElementById("suq-confirm-text").textContent = message;
     suqDeleteCallback = callback;
@@ -985,6 +1019,7 @@ function suqConfirmDelete(message, callback) {
     };
 }
 
+// Animate closing the delete confirmation.
 function suqCloseConfirm() {
     const modal = document.getElementById("suq-confirm-modal");
     const card  = document.getElementById("suq-confirm-card");
@@ -997,8 +1032,10 @@ function suqCloseConfirm() {
 
 /* ================= DOWNLOAD CONFIRM MODAL ================= */
 
+// Keep track of temporary download URLs for cleanup.
 let suqDownloadUrl = null;
 
+// Prompt the user before downloading files that can't be previewed.
 function suqConfirmDownload(file) {
     const modal = document.getElementById("suq-download-modal");
     const card  = document.getElementById("suq-download-card");
@@ -1018,6 +1055,7 @@ function suqConfirmDownload(file) {
     });
 }
 
+// Close the download prompt and revoke Blob URLs.
 function suqCloseDownload() {
     const modal = document.getElementById("suq-download-modal");
     const card  = document.getElementById("suq-download-card");
@@ -1040,6 +1078,7 @@ if (typeof suqRegisterModalHandlers === "function") {
 
 /* ============ GLOBAL UX: CLICK OUTSIDE & ESC CLEAR SELECTION ============ */
 
+// Close bulk selections when clicking outside upload-related elements.
 document.addEventListener("click", e => {
     if (!e.target.closest(".smartuiqisti-upload-container") &&
         !e.target.closest("#suq-preview-modal") &&
@@ -1052,6 +1091,7 @@ document.addEventListener("click", e => {
     }
 });
 
+// Clear bulk selection when the user presses Escape.
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
         document.querySelectorAll(".suq-bulk-bar").forEach(bar => bar.classList.add("hidden"));
